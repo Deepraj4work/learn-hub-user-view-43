@@ -53,7 +53,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="font-bold text-xl flex items-center gap-2">
             <BookOpen size={24} />
-            <span>LearnHub</span>
+            <span>Creditor Academy</span>
           </div>
         )}
         {collapsed && <BookOpen size={24} className="mx-auto" />}
