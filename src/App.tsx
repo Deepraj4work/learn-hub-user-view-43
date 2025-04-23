@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,12 @@ import DashboardLayout from "./layouts/DashboardLayout";
 import Progress from "./pages/Progress";
 import Catalog from "./pages/Catalog";
 import { Profile } from "./pages/Profile";
+import Groups from "./pages/Groups";
+import GroupLayout from "./layouts/GroupLayout";
+import NewsPage from "./pages/group/NewsPage";
+import CalendarPage from "./pages/group/CalendarPage";
+import MembersPage from "./pages/group/MembersPage";
+import AdminPage from "./pages/group/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -30,7 +37,16 @@ const App = () => (
             <Route path="progress" element={<Progress />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Dashboard />} />
+            <Route path="groups" element={<Groups />} />
           </Route>
+          
+          <Route path="/groups/:groupId" element={<GroupLayout />}>
+            <Route path="news" element={<NewsPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="admin" element={<AdminPage />} />
+          </Route>
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

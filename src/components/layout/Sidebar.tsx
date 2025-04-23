@@ -13,7 +13,8 @@ import {
   User,
   BookText,
   GraduationCap,
-  BarChart
+  BarChart,
+  Users
 } from "lucide-react";
 
 type SidebarItemProps = {
@@ -69,10 +70,11 @@ export function Sidebar() {
       </div>
       
       <div className="flex-1 overflow-auto p-3 flex flex-col gap-1">
-        <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/" active={true} collapsed={collapsed} />
-        <SidebarItem icon={Book} label="My Courses" href="/courses" collapsed={collapsed} />
-        <SidebarItem icon={BookText} label="Catalog" href="/catalog" collapsed={collapsed} />
-        <SidebarItem icon={BarChart} label="Progress" href="/progress" collapsed={collapsed} />
+        <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/" active={location.pathname === "/"} collapsed={collapsed} />
+        <SidebarItem icon={Book} label="My Courses" href="/courses" active={location.pathname === "/courses"} collapsed={collapsed} />
+        <SidebarItem icon={BookText} label="Catalog" href="/catalog" active={location.pathname === "/catalog"} collapsed={collapsed} />
+        <SidebarItem icon={BarChart} label="Progress" href="/progress" active={location.pathname === "/progress"} collapsed={collapsed} />
+        <SidebarItem icon={Users} label="Groups" href="/groups" active={location.pathname.startsWith("/groups")} collapsed={collapsed} />
         
         <div className="mt-2 pt-2 border-t">
           <div className={cn("px-3 py-1.5 text-xs text-muted-foreground uppercase font-medium", 
@@ -80,8 +82,8 @@ export function Sidebar() {
           )}>
             {!collapsed && "Account"}
           </div>
-          <SidebarItem icon={User} label="Profile" href="/profile" collapsed={collapsed} />
-          <SidebarItem icon={Settings} label="Settings" href="/settings" collapsed={collapsed} />
+          <SidebarItem icon={User} label="Profile" href="/profile" active={location.pathname === "/profile"} collapsed={collapsed} />
+          <SidebarItem icon={Settings} label="Settings" href="/settings" active={location.pathname === "/settings"} collapsed={collapsed} />
         </div>
       </div>
       
