@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bell, Search } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ProfileDropdown from "./ProfileDropdown";
 
 export function DashboardHeader() {
   return (
@@ -26,10 +26,7 @@ export function DashboardHeader() {
             <Bell size={18} />
           </Button>
           
-          <Avatar>
-            <AvatarImage src="" />
-            <AvatarFallback>AJ</AvatarFallback>
-          </Avatar>
+          <ProfileDropdown />
         </div>
       </div>
     </header>
