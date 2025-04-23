@@ -11,6 +11,7 @@ import CourseView from "./pages/CourseView";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Progress from "./pages/Progress";
 import Catalog from "./pages/Catalog";
+import { Profile } from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +28,7 @@ const App = () => (
             <Route path="courses/:id" element={<CourseView />} />
             <Route path="catalog" element={<Catalog />} />
             <Route path="progress" element={<Progress />} />
-            <Route path="profile" element={<Dashboard />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Dashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
