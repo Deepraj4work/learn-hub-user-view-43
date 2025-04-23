@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import CourseView from "./pages/CourseView";
 import DashboardLayout from "./layouts/DashboardLayout";
+import Progress from "./pages/Progress";
+import Catalog from "./pages/Catalog";
 
 const queryClient = new QueryClient();
 
@@ -23,8 +25,8 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="courses" element={<Courses />} />
             <Route path="courses/:id" element={<CourseView />} />
-            <Route path="catalog" element={<Courses />} />
-            <Route path="progress" element={<Dashboard />} />
+            <Route path="catalog" element={<Catalog />} />
+            <Route path="progress" element={<Progress />} />
             <Route path="profile" element={<Dashboard />} />
             <Route path="settings" element={<Dashboard />} />
           </Route>
