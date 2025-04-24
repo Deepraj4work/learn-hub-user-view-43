@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,6 +40,8 @@ const App = () => (
             <Route path="settings" element={<Dashboard />} />
             <Route path="groups" element={<Groups />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="todo" element={<Dashboard />} /> {/* Placeholder for future Todo page */}
           </Route>
           
           <Route path="/groups/:groupId" element={<GroupLayout />}>

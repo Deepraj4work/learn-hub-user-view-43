@@ -6,6 +6,9 @@ import CourseCard from "@/components/dashboard/CourseCard";
 import { Button } from "@/components/ui/button";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import DashboardCarousel from "@/components/dashboard/DashboardCarousel";
+import DashboardCalendar from "@/components/dashboard/DashboardCalendar";
+import DashboardTodo from "@/components/dashboard/DashboardTodo";
 
 export function Dashboard() {
   const inProgressCourses = [
@@ -74,6 +77,27 @@ export function Dashboard() {
             <h2 className="text-2xl font-semibold mb-5">Hello, Alex 👋</h2>
             <p className="text-muted-foreground">Track your progress, continue learning, and explore new courses.</p>
             <ProgressStats />
+          </div>
+          
+          {/* New Dashboard Top Section */}
+          <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Carousel Section - 70% */}
+            <div className="lg:col-span-8">
+              <h3 className="text-lg font-medium mb-3">Latest Updates</h3>
+              <DashboardCarousel />
+            </div>
+            
+            {/* Calendar & Todo Section - 30% */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              <div className="h-[350px]">
+                <h3 className="text-lg font-medium mb-3">Your Calendar</h3>
+                <DashboardCalendar />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
+                <DashboardTodo />
+              </div>
+            </div>
           </div>
           
           <div className="mb-8">

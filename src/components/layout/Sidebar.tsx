@@ -1,5 +1,6 @@
+
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
@@ -42,11 +43,19 @@ const SidebarItem = ({ icon: Icon, label, href, active, collapsed }: SidebarItem
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <div 
       className={cn(
-        "h-screen sticky top-0 flex flex-col border-r bg-background transition-all duration-300",
+        "h-screen sticky top-0 flex flex-col border-r bg-background transition-all duration-300 z-20",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -74,42 +83,42 @@ export function Sidebar() {
           icon={LayoutDashboard} 
           label="Dashboard" 
           href="/" 
-          active={location.pathname === "/"} 
+          active={isActive("/")} 
           collapsed={collapsed} 
         />
         <SidebarItem 
           icon={Book} 
           label="My Courses" 
           href="/courses" 
-          active={location.pathname === "/courses"} 
+          active={isActive("/courses")} 
           collapsed={collapsed} 
         />
         <SidebarItem 
           icon={BookText} 
           label="Catalog" 
           href="/catalog" 
-          active={location.pathname === "/catalog"} 
+          active={isActive("/catalog")} 
           collapsed={collapsed} 
         />
         <SidebarItem 
           icon={BarChart} 
           label="Progress" 
           href="/progress" 
-          active={location.pathname === "/progress"} 
+          active={isActive("/progress")} 
           collapsed={collapsed} 
         />
         <SidebarItem 
           icon={Users} 
           label="Groups" 
           href="/groups" 
-          active={location.pathname.startsWith("/groups")} 
+          active={isActive("/groups")} 
           collapsed={collapsed} 
         />
         <SidebarItem 
           icon={MessageSquare} 
           label="Messages" 
           href="/messages" 
-          active={location.pathname === "/messages"} 
+          active={isActive("/messages")} 
           collapsed={collapsed} 
         />
         
@@ -119,8 +128,20 @@ export function Sidebar() {
           )}>
             {!collapsed && "Account"}
           </div>
-          <SidebarItem icon={User} label="Profile" href="/profile" active={location.pathname === "/profile"} collapsed={collapsed} />
-          <SidebarItem icon={Settings} label="Settings" href="/settings" active={location.pathname === "/settings"} collapsed={collapsed} />
+          <SidebarItem 
+            icon={User} 
+            label="Profile" 
+            href="/profile" 
+            active={isActive("/profile")} 
+            collapsed={collapsed} 
+          />
+          <SidebarItem 
+            icon={Settings} 
+            label="Settings" 
+            href="/settings" 
+            active={isActive("/settings")} 
+            collapsed={collapsed} 
+          />
         </div>
       </div>
       
