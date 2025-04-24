@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +18,7 @@ import NewsPage from "./pages/group/NewsPage";
 import CalendarPage from "./pages/group/CalendarPage";
 import MembersPage from "./pages/group/MembersPage";
 import AdminPage from "./pages/group/AdminPage";
+import Messages from "./pages/Messages";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +38,7 @@ const App = () => (
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Dashboard />} />
             <Route path="groups" element={<Groups />} />
+            <Route path="messages" element={<Messages />} />
           </Route>
           
           <Route path="/groups/:groupId" element={<GroupLayout />}>
