@@ -20,6 +20,8 @@ import CalendarPage from "./pages/group/CalendarPage";
 import MembersPage from "./pages/group/MembersPage";
 import AdminPage from "./pages/group/AdminPage";
 import Messages from "./pages/Messages";
+import Login from "./pages/Auth/Login";
+import Signup from "./pages/Auth/Signup";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          
+          {/* Main App Routes */}
           <Route path="/" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="courses" element={<Courses />} />
@@ -37,7 +44,6 @@ const App = () => (
             <Route path="catalog" element={<Catalog />} />
             <Route path="progress" element={<Progress />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="settings" element={<Dashboard />} />
             <Route path="groups" element={<Groups />} />
             <Route path="messages" element={<Messages />} />
             <Route path="calendar" element={<CalendarPage />} />

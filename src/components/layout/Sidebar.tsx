@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
@@ -9,10 +9,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   LayoutDashboard, 
-  Settings, 
   User,
   BookText,
-  GraduationCap,
   BarChart,
   Users,
   MessageSquare
@@ -44,12 +42,17 @@ const SidebarItem = ({ icon: Icon, label, href, active, collapsed }: SidebarItem
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => {
     if (path === "/") {
       return location.pathname === path;
     }
     return location.pathname.startsWith(path);
+  };
+  
+  const handleProfileClick = () => {
+    navigate("/profile");
   };
 
   return (
@@ -121,35 +124,17 @@ export function Sidebar() {
           active={isActive("/messages")} 
           collapsed={collapsed} 
         />
-        
-        <div className="mt-2 pt-2 border-t">
-          <div className={cn("px-3 py-1.5 text-xs text-muted-foreground uppercase font-medium", 
-            collapsed && "text-center"
-          )}>
-            {!collapsed && "Account"}
-          </div>
-          <SidebarItem 
-            icon={User} 
-            label="Profile" 
-            href="/profile" 
-            active={isActive("/profile")} 
-            collapsed={collapsed} 
-          />
-          <SidebarItem 
-            icon={Settings} 
-            label="Settings" 
-            href="/settings" 
-            active={isActive("/settings")} 
-            collapsed={collapsed} 
-          />
-        </div>
       </div>
       
       <div className="border-t p-3">
-        <div className={cn(
-          "flex items-center gap-3 rounded-lg p-2", 
-          collapsed ? "justify-center" : ""
-        )}>
+        <button 
+          onClick={handleProfileClick}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg p-2 hover:bg-secondary transition-colors", 
+            isActive("/profile") ? "bg-primary/10" : "",
+            collapsed ? "justify-center" : ""
+          )}
+        >
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary grid place-items-center">
             <User size={16} />
           </div>
@@ -159,7 +144,7 @@ export function Sidebar() {
               <div className="text-xs text-muted-foreground">alex@example.com</div>
             </div>
           )}
-        </div>
+        </button>
       </div>
     </div>
   );

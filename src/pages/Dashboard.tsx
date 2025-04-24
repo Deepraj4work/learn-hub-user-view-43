@@ -14,32 +14,32 @@ export function Dashboard() {
   const inProgressCourses = [
     {
       id: "1",
-      title: "Complete React Developer in 2023",
-      description: "Learn React with Redux, Hooks, GraphQL from industry experts. Build real projects.",
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=1000",
+      title: "Constitutional Law Fundamentals",
+      description: "Learn the essentials of US constitutional law including rights, powers, and judicial review.",
+      image: "https://images.unsplash.com/photo-1589994965851-a8f479c573a9?q=80&w=1000",
       progress: 62,
       lessonsCount: 42,
-      category: "Web Development",
+      category: "Legal Studies",
       duration: "25 hours"
     },
     {
       id: "2",
-      title: "Advanced JavaScript Concepts",
-      description: "Master advanced JavaScript concepts: prototypal inheritance, closures, and more.",
-      image: "https://images.unsplash.com/photo-1627398242454-45a1465c2479?q=80&w=1000",
+      title: "Civil Litigation Procedure",
+      description: "Master the procedures and strategies involved in civil litigation in American courts.",
+      image: "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1000",
       progress: 35,
       lessonsCount: 28,
-      category: "Programming",
+      category: "Legal Practice",
       duration: "18 hours"
     },
     {
       id: "3",
-      title: "UI/UX Design Masterclass",
-      description: "Create stunning user interfaces and improve user experiences for web applications.",
-      image: "https://images.unsplash.com/photo-1545235617-9465d2a55698?q=80&w=1000",
+      title: "Criminal Law and Procedure",
+      description: "Study the principles of criminal law, defenses, and procedural requirements in the US justice system.",
+      image: "https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=1000",
       progress: 78,
       lessonsCount: 36,
-      category: "Design",
+      category: "Criminal Justice",
       duration: "22 hours"
     }
   ];
@@ -47,22 +47,22 @@ export function Dashboard() {
   const recommendedCourses = [
     {
       id: "4",
-      title: "Node.js Complete Guide",
-      description: "Build complete backend solutions with Node.js, Express, and MongoDB.",
-      image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1000",
+      title: "Contract Law and Drafting",
+      description: "Learn to analyze, interpret, and draft legally binding contracts under US law.",
+      image: "https://images.unsplash.com/photo-1589391886645-d51941baf7fb?q=80&w=1000",
       progress: 0,
       lessonsCount: 38,
-      category: "Backend",
+      category: "Business Law",
       duration: "28 hours"
     },
     {
       id: "5",
-      title: "TypeScript Fundamentals to Advanced",
-      description: "Learn TypeScript from basics to advanced concepts with practical examples.",
-      image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000",
+      title: "Legal Research and Writing",
+      description: "Develop essential skills for conducting legal research and preparing legal documents.",
+      image: "https://images.unsplash.com/photo-1562564055-71e051d33c19?q=80&w=1000",
       progress: 0,
       lessonsCount: 32,
-      category: "Programming",
+      category: "Legal Skills",
       duration: "20 hours"
     }
   ];
@@ -76,20 +76,19 @@ export function Dashboard() {
           <div className="mb-8">
             <h2 className="text-2xl font-semibold mb-5">Hello, Alex 👋</h2>
             <p className="text-muted-foreground">Track your progress, continue learning, and explore new courses.</p>
-            <ProgressStats />
           </div>
           
-          {/* New Dashboard Top Section */}
+          {/* Dashboard Top Section - Carousel (70%) + Calendar/Todo (30%) */}
           <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Carousel Section - 70% */}
-            <div className="lg:col-span-8">
+            <div className="lg:col-span-8 h-full">
               <h3 className="text-lg font-medium mb-3">Latest Updates</h3>
               <DashboardCarousel />
             </div>
             
             {/* Calendar & Todo Section - 30% */}
-            <div className="lg:col-span-4 flex flex-col gap-6">
-              <div className="h-[350px]">
+            <div className="lg:col-span-4 grid grid-rows-2 gap-6">
+              <div>
                 <h3 className="text-lg font-medium mb-3">Your Calendar</h3>
                 <DashboardCalendar />
               </div>
@@ -98,6 +97,11 @@ export function Dashboard() {
                 <DashboardTodo />
               </div>
             </div>
+          </div>
+          
+          {/* Progress Stats */}
+          <div className="mb-8">
+            <ProgressStats />
           </div>
           
           <div className="mb-8">
@@ -137,7 +141,7 @@ export function Dashboard() {
               <div className="flex flex-col items-center justify-center border rounded-lg bg-muted/30 p-6 text-center">
                 <BookOpen size={36} className="text-muted-foreground mb-3" />
                 <h3 className="font-semibold mb-2">Explore More Courses</h3>
-                <p className="text-muted-foreground text-sm mb-4">Discover courses tailored to your interests and learning goals.</p>
+                <p className="text-muted-foreground text-sm mb-4">Discover courses tailored to your legal education goals.</p>
                 <Button asChild>
                   <Link to="/catalog">
                     Browse Catalog
