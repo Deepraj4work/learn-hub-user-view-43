@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Progress } from "@/components/ui/progress";
@@ -11,7 +10,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, BookOpen, Clock, GraduationCap, Trophy, PieChart } from "lucide-react";
+import { BookOpen, Clock, GraduationCap, Trophy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ChartContainer, 
@@ -127,7 +126,6 @@ export function ProgressPage() {
     0
   ).toFixed(1);
   
-  // Format data for overall skill proficiency chart
   const skillProficiencyData = skilledAreas.map(area => ({
     subject: area.name,
     score: area.value,
@@ -179,7 +177,7 @@ export function ProgressPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium">Average Progress</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{averageProgress}%</div>
@@ -197,7 +195,6 @@ export function ProgressPage() {
             
             <TabsContent value="overview">
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Weekly Learning Hours */}
                 <Card className="overflow-hidden">
                   <CardHeader>
                     <CardTitle className="flex items-center">
@@ -207,7 +204,7 @@ export function ProgressPage() {
                   <CardContent>
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
+                        <RechartsBarChart
                           data={weeklyLearningData}
                           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                         >
@@ -216,17 +213,16 @@ export function ProgressPage() {
                           <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
                           <Tooltip formatter={(value) => [`${value} hours`, 'Study Time']} />
                           <Bar dataKey="hours" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                        </BarChart>
+                        </RechartsBarChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
                 </Card>
                 
-                {/* Progress Over Time */}
                 <Card className="overflow-hidden">
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      <BarChart className="mr-2 h-5 w-5 text-primary" /> Monthly Progress
+                      <Clock className="mr-2 h-5 w-5 text-primary" /> Monthly Progress
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -259,11 +255,10 @@ export function ProgressPage() {
                   </CardContent>
                 </Card>
                 
-                {/* Activity Breakdown */}
                 <Card className="overflow-hidden">
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      <PieChart className="mr-2 h-5 w-5 text-primary" /> Learning Activities
+                      <Clock className="mr-2 h-5 w-5 text-primary" /> Learning Activities
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -292,7 +287,6 @@ export function ProgressPage() {
                   </CardContent>
                 </Card>
                 
-                {/* Top Skills */}
                 <Card className="overflow-hidden">
                   <CardHeader>
                     <CardTitle className="flex items-center">
@@ -302,7 +296,7 @@ export function ProgressPage() {
                   <CardContent>
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
+                        <RechartsBarChart
                           layout="vertical"
                           data={skilledAreas}
                           margin={{ top: 20, right: 30, left: 60, bottom: 5 }}
@@ -316,7 +310,7 @@ export function ProgressPage() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Bar>
-                        </BarChart>
+                        </RechartsBarChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
@@ -375,13 +369,13 @@ export function ProgressPage() {
                       </div>
                       <div className="h-[200px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={course.focusAreas} layout="vertical">
+                          <RechartsBarChart data={course.focusAreas} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" domain={[0, 100]} />
                             <YAxis dataKey="name" type="category" width={80} />
                             <Tooltip formatter={(value) => [`${value}%`, 'Completion']} />
                             <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} />
-                          </BarChart>
+                          </RechartsBarChart>
                         </ResponsiveContainer>
                       </div>
                     </CardContent>
