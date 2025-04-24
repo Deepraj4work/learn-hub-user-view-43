@@ -86,13 +86,13 @@ export function Dashboard() {
               <DashboardCarousel />
             </div>
             
-            {/* Calendar & Todo Section - 30% */}
-            <div className="lg:col-span-4 grid grid-rows-2 gap-6">
-              <div>
+            {/* Calendar & Todo Section - 30% side-by-side in column */}
+            <div className="lg:col-span-4 flex flex-col h-full">
+              <div className="mb-6 flex-1">
                 <h3 className="text-lg font-medium mb-3">Your Calendar</h3>
                 <DashboardCalendar />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
                 <DashboardTodo />
               </div>
@@ -104,6 +104,7 @@ export function Dashboard() {
             <ProgressStats />
           </div>
           
+          {/* Continue Learning Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Continue Learning</h2>

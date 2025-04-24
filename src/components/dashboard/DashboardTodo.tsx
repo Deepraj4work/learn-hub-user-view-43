@@ -67,22 +67,22 @@ export function DashboardTodo() {
   
   return (
     <Card className="border h-full shadow">
-      <div className="p-4 flex items-center justify-between border-b">
+      <div className="p-3 flex items-center justify-between border-b">
         <div className="flex items-center gap-2">
-          <ListTodo size={20} className="text-primary" />
-          <h3 className="font-medium">Task List</h3>
+          <ListTodo size={18} className="text-primary" />
+          <h3 className="font-medium text-sm">Task List</h3>
         </div>
-        <Button variant="ghost" size="sm" className="text-xs h-8" asChild>
+        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" asChild>
           <Link to="/todo">View all</Link>
         </Button>
       </div>
       
-      <ScrollArea className="h-[260px] p-4">
-        <div className="space-y-2 pr-4">
+      <ScrollArea className="h-[240px] p-3">
+        <div className="space-y-2 pr-3">
           {todos.map(todo => (
             <div 
               key={todo.id} 
-              className={`flex items-center gap-2 p-2 rounded-md transition-colors ${
+              className={`flex items-center gap-2 p-1.5 rounded-md transition-colors ${
                 todo.completed ? 'bg-muted/30' : `${getPriorityColor(todo.priority)} bg-opacity-30`
               }`}
             >
@@ -90,10 +90,11 @@ export function DashboardTodo() {
                 id={`todo-${todo.id}`}
                 checked={todo.completed}
                 onCheckedChange={() => toggleTodo(todo.id)}
+                className="h-3.5 w-3.5"
               />
               <label 
                 htmlFor={`todo-${todo.id}`}
-                className={`flex-1 text-sm cursor-pointer ${
+                className={`flex-1 text-xs cursor-pointer ${
                   todo.completed ? 'line-through text-muted-foreground' : ''
                 }`}
               >
@@ -104,9 +105,9 @@ export function DashboardTodo() {
         </div>
       </ScrollArea>
       
-      <div className="p-4 pt-2 border-t">
-        <Button variant="outline" size="sm" className="w-full">
-          <Plus size={16} className="mr-1" />
+      <div className="p-3 pt-2 border-t">
+        <Button variant="outline" size="sm" className="w-full text-xs">
+          <Plus size={14} className="mr-1" />
           Add task
         </Button>
       </div>

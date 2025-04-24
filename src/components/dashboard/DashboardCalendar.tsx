@@ -77,17 +77,17 @@ export function DashboardCalendar() {
 
   return (
     <Card className="border h-full shadow">
-      <div className="p-4 flex items-center justify-between border-b">
+      <div className="p-3 flex items-center justify-between border-b">
         <div className="flex items-center gap-2">
-          <CalendarIcon size={20} className="text-primary" />
-          <h3 className="font-medium">Calendar</h3>
+          <CalendarIcon size={18} className="text-primary" />
+          <h3 className="font-medium text-sm">Calendar</h3>
         </div>
-        <Button variant="ghost" size="sm" className="text-xs h-8" asChild>
+        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" asChild>
           <Link to="/calendar">View all</Link>
         </Button>
       </div>
 
-      <div className="p-4 border-b">
+      <div className="p-3 border-b">
         <Calendar
           mode="single"
           selected={date}
@@ -97,20 +97,20 @@ export function DashboardCalendar() {
         />
       </div>
       
-      <div className="px-4 py-2">
-        <div className="text-sm font-medium mb-2">
+      <div className="px-3 py-2">
+        <div className="text-sm font-medium">
           {selectedDateEvents.length > 0 
             ? `Events for ${date?.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}` 
             : `No events for ${date?.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`}
         </div>
       </div>
       
-      <ScrollArea className="h-[120px] px-4 pb-4">
-        <div className="space-y-2 pr-4">
+      <ScrollArea className="h-[100px] px-3 pb-3">
+        <div className="space-y-2 pr-3">
           {selectedDateEvents.map(event => (
-            <div key={event.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-              <span className="text-sm">{event.title}</span>
-              <Badge className={getStatusColor(event.status)}>
+            <div key={event.id} className="flex items-center justify-between p-1.5 rounded-md bg-muted/50">
+              <span className="text-xs">{event.title}</span>
+              <Badge className={`${getStatusColor(event.status)} text-xs py-0 px-2`}>
                 {event.status}
               </Badge>
             </div>

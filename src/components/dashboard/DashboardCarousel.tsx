@@ -7,7 +7,6 @@ import {
   CarouselNext, 
   CarouselPrevious 
 } from "@/components/ui/carousel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Calendar, User, AlertCircle, BookOpen, GraduationCap } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
@@ -76,22 +75,11 @@ export function DashboardCarousel() {
       default: return 'from-gray-500 to-gray-700';
     }
   };
-  
-  const getItemIcon = (type: string) => {
-    switch(type) {
-      case 'event': return Calendar;
-      case 'profile': return User;
-      case 'notification': return Bell;
-      case 'alert': return AlertCircle;
-      case 'course': return GraduationCap;
-      default: return Bell;
-    }
-  };
 
   return (
     <Carousel
       opts={{
-        align: "start",
+        align: "center",
         loop: true,
       }}
       className="w-full"
@@ -103,13 +91,13 @@ export function DashboardCarousel() {
           
           return (
             <CarouselItem key={item.id} className="md:basis-full">
-              <div className="relative h-[260px] w-full overflow-hidden rounded-xl shadow-lg">
+              <div className="relative h-[300px] w-full overflow-hidden rounded-xl shadow-lg">
                 {/* Background Image with Gradient Overlay */}
                 <div className="absolute inset-0">
                   <img 
                     src={item.image} 
                     alt={item.title} 
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover object-center"
                   />
                   <div className={`absolute inset-0 bg-gradient-to-r ${gradientClass} mix-blend-multiply opacity-80`}></div>
                 </div>
@@ -117,13 +105,13 @@ export function DashboardCarousel() {
                 {/* Content */}
                 <div className="absolute inset-0 p-8 flex flex-col justify-between text-white">
                   <div>
-                    <div className="flex items-center mb-3">
+                    <div className="flex items-center mb-4">
                       <div className="p-2 rounded-full bg-white/20 mr-3">
                         <Icon size={24} />
                       </div>
                       <h3 className="text-2xl font-bold">{item.title}</h3>
                     </div>
-                    <p className="text-lg opacity-90 max-w-[75%] line-clamp-3">{item.description}</p>
+                    <p className="text-lg opacity-90 max-w-[80%] line-clamp-3">{item.description}</p>
                   </div>
                   
                   {item.buttonText && (
@@ -141,9 +129,9 @@ export function DashboardCarousel() {
           );
         })}
       </CarouselContent>
-      <div className="flex justify-center gap-2 mt-4">
-        <CarouselPrevious className="static relative translate-y-0 mr-2" />
-        <CarouselNext className="static relative translate-y-0" />
+      <div className="flex justify-center gap-2 mt-3">
+        <CarouselPrevious className="static transform-none translate-y-0 mr-2" />
+        <CarouselNext className="static transform-none translate-y-0" />
       </div>
     </Carousel>
   );
