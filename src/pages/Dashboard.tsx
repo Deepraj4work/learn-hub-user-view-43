@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import ProgressStats from "@/components/dashboard/ProgressStats";
@@ -78,7 +77,7 @@ export function Dashboard() {
             <p className="text-muted-foreground">Track your progress, continue learning, and explore new courses.</p>
           </div>
           
-          {/* Dashboard Top Section - Carousel (70%) + Calendar/Todo (30%) */}
+          {/* Dashboard Top Section - Carousel (70%) + Calendar/Todo/Progress (30%) */}
           <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Carousel Section - 70% */}
             <div className="lg:col-span-8 h-full">
@@ -86,22 +85,23 @@ export function Dashboard() {
               <DashboardCarousel />
             </div>
             
-            {/* Calendar & Todo Section - 30% side-by-side in column */}
-            <div className="lg:col-span-4 flex flex-col h-full">
-              <div className="mb-6 flex-1">
+            {/* Calendar, Todo & Progress Section - 30% side-by-side in column */}
+            <div className="lg:col-span-4 grid grid-cols-1 gap-6">
+              <div>
                 <h3 className="text-lg font-medium mb-3">Your Calendar</h3>
                 <DashboardCalendar />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
-                <DashboardTodo />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-1">
+                  <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
+                  <DashboardTodo />
+                </div>
+                <div className="col-span-1">
+                  <h3 className="text-lg font-medium mb-3">Your Progress</h3>
+                  <ProgressStats />
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Progress Stats */}
-          <div className="mb-8">
-            <ProgressStats />
           </div>
           
           {/* Continue Learning Section */}
