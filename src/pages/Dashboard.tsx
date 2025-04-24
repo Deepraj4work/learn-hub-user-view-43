@@ -79,27 +79,27 @@ export function Dashboard() {
           
           {/* Dashboard Top Section - Carousel (70%) + Calendar/Todo/Progress (30%) */}
           <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Carousel Section - 70% */}
-            <div className="lg:col-span-8 h-full">
-              <h3 className="text-lg font-medium mb-3">Latest Updates</h3>
-              <DashboardCarousel />
+            {/* Left Section with Carousel and Progress - 70% */}
+            <div className="lg:col-span-8 space-y-6">
+              <div>
+                <h3 className="text-lg font-medium mb-3">Latest Updates</h3>
+                <DashboardCarousel />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-3">Your Progress</h3>
+                <ProgressStats />
+              </div>
             </div>
             
-            {/* Calendar, Todo & Progress Section - 30% side-by-side in column */}
-            <div className="lg:col-span-4 grid grid-cols-1 gap-6">
+            {/* Right Section with Calendar and Todo - 30% */}
+            <div className="lg:col-span-4 space-y-6">
               <div>
                 <h3 className="text-lg font-medium mb-3">Your Calendar</h3>
                 <DashboardCalendar />
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="col-span-1">
-                  <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
-                  <DashboardTodo />
-                </div>
-                <div className="col-span-1">
-                  <h3 className="text-lg font-medium mb-3">Your Progress</h3>
-                  <ProgressStats />
-                </div>
+              <div>
+                <h3 className="text-lg font-medium mb-3">Your Tasks</h3>
+                <DashboardTodo />
               </div>
             </div>
           </div>
