@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import DashboardCarousel from "@/components/dashboard/DashboardCarousel";
 import DashboardCalendar from "@/components/dashboard/DashboardCalendar";
 import DashboardTodo from "@/components/dashboard/DashboardTodo";
+import MonthlyProgress from "@/components/dashboard/MonthlyProgress";
 
 export function Dashboard() {
   const inProgressCourses = [
@@ -88,6 +89,10 @@ export function Dashboard() {
               <div>
                 <h3 className="text-lg font-medium mb-3">Your Progress</h3>
                 <ProgressStats />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-3">Monthly Overview</h3>
+                <MonthlyProgress />
               </div>
             </div>
             
