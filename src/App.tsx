@@ -13,11 +13,11 @@ import { UnitDetail } from "@/pages/UnitDetail";
 import { LessonView } from "@/pages/LessonView";
 import { QuizView } from "@/pages/QuizView";
 import { Groups } from "@/pages/Groups";
-import { Catalog } from "@/pages/Catalog";
-import { Progress } from "@/pages/Progress";
-import { Messages } from "@/pages/Messages";
+import Catalog from "@/pages/Catalog";
+import Progress from "@/pages/Progress";
+import Messages from "@/pages/Messages";
 import { Profile } from "@/pages/Profile";
-import { NotFound } from "@/pages/NotFound";
+import NotFound from "@/pages/NotFound";
 
 function App() {
   return (
