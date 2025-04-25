@@ -7,9 +7,11 @@ import {
   BarChart3,
   BookCheck,
   BookOpen,
-  Clock
+  Clock,
+  Folders
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router-dom";
 
 export function Courses() {
   const inProgressCourses = [
@@ -112,9 +114,63 @@ export function Courses() {
             </TabsList>
             
             <TabsContent value="in-progress" className="mt-0">
+              {/* Featured Course */}
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Folders size={18} />
+                  <h2 className="text-xl font-semibold">Continue Learning</h2>
+                </div>
+                <div className="bg-accent/30 rounded-xl p-6 border">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    <div className="md:w-1/3">
+                      <div className="rounded-xl overflow-hidden">
+                        <img 
+                          src="https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=1000" 
+                          alt="React Course"
+                          className="w-full aspect-[4/3] object-cover"
+                        />
+                      </div>
+                    </div>
+                    <div className="md:w-2/3 flex flex-col">
+                      <h3 className="text-2xl font-bold mb-2">Complete React Developer in 2023</h3>
+                      <p className="text-muted-foreground mb-4">Learn React with Redux, Hooks, GraphQL from industry experts. Build real projects.</p>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                        <span className="flex items-center gap-1">
+                          <BookOpen size={16} />
+                          42 Lessons
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={16} />
+                          25 hours
+                        </span>
+                      </div>
+                      <div className="mb-4 mt-auto">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">62% Complete</span>
+                          <span>Module 2 of 6</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full" style={{ width: '62%' }}></div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-2">
+                        <Button asChild>
+                          <Link to="/courses/modules">
+                            Continue Learning
+                          </Link>
+                        </Button>
+                        <Button variant="outline">View Course Details</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {inProgressCourses.map((course) => (
-                  <CourseCard key={course.id} {...course} />
+                  <Link to="/courses/modules" key={course.id}>
+                    <CourseCard key={course.id} {...course} />
+                  </Link>
                 ))}
               </div>
             </TabsContent>
