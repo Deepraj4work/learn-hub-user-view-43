@@ -21,7 +21,6 @@ import {
   NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import {
   Tooltip,
@@ -29,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Dummy data for dropdown content
 const userGroups = [
@@ -64,53 +64,57 @@ type SidebarItemProps = {
 const SidebarItem = ({ icon: Icon, label, href, active, collapsed, dropdownContent }: SidebarItemProps) => {
   if (dropdownContent) {
     return (
-      <NavigationMenu>
-        <NavigationMenuList>
-          <NavigationMenuItem>
-            <NavigationMenuTrigger>
-              <div className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 transition-all w-full",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-secondary text-foreground hover:text-foreground"
-              )}>
-                <Icon size={20} />
-                {!collapsed && <span>{label}</span>}
-              </div>
-            </NavigationMenuTrigger>
-            <NavigationMenuContent className="min-w-[220px] bg-popover p-2">
-              <div className="space-y-2">
-                {dropdownContent.items.map((item) => (
-                  <Link
-                    key={item.id}
-                    to={`${href}/${item.id}`}
-                    className="flex items-center justify-between rounded-md p-2 hover:bg-accent text-sm"
-                  >
-                    <span>{item.name}</span>
-                    {item.members && (
-                      <span className="text-xs text-muted-foreground">{item.members} members</span>
-                    )}
-                    {item.progress && (
-                      <span className="text-xs text-muted-foreground">{item.progress}</span>
-                    )}
-                    {item.count && (
-                      <span className="text-xs text-muted-foreground">{item.count} courses</span>
-                    )}
-                  </Link>
-                ))}
-                <div className="pt-2 mt-2 border-t">
-                  <Link
-                    to={dropdownContent.viewAllLink}
-                    className="block w-full text-center text-sm text-primary hover:underline"
-                  >
-                    View All
-                  </Link>
-                </div>
-              </div>
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      </NavigationMenu>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Link
+            to={href}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-secondary text-foreground hover:text-foreground"
+            )}
+          >
+            <Icon size={20} />
+            {!collapsed && <span>{label}</span>}
+          </Link>
+        </PopoverTrigger>
+        <PopoverContent 
+          side="right" 
+          align="start" 
+          className="min-w-[220px] p-2 z-50"
+          sideOffset={5}
+        >
+          <div className="space-y-2">
+            {dropdownContent.items.map((item) => (
+              <Link
+                key={item.id}
+                to={`${href}/${item.id}`}
+                className="flex items-center justify-between rounded-md p-2 hover:bg-accent text-sm"
+              >
+                <span>{item.name}</span>
+                {item.members && (
+                  <span className="text-xs text-muted-foreground">{item.members} members</span>
+                )}
+                {item.progress && (
+                  <span className="text-xs text-muted-foreground">{item.progress}</span>
+                )}
+                {item.count && (
+                  <span className="text-xs text-muted-foreground">{item.count} courses</span>
+                )}
+              </Link>
+            ))}
+            <div className="pt-2 mt-2 border-t">
+              <Link
+                to={dropdownContent.viewAllLink}
+                className="block w-full text-center text-sm text-primary hover:underline"
+              >
+                View All
+              </Link>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 
