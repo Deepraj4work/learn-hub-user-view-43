@@ -15,16 +15,14 @@ import {
   Users,
   MessageSquare,
   Settings,
-  VideoIcon,
-  BadgeHelp,
-  School
 } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -32,63 +30,90 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// Dummy data for dropdown content
+const userGroups = [
+  { id: 1, name: "Web Development", members: 24 },
+  { id: 2, name: "Data Science", members: 18 },
+  { id: 3, name: "Mobile App Development", members: 15 },
+];
+
+const userCourses = [
+  { id: 1, name: "React Fundamentals", progress: "75%" },
+  { id: 2, name: "TypeScript Basics", progress: "45%" },
+  { id: 3, name: "Node.js Essentials", progress: "30%" },
+];
+
+const catalogItems = [
+  { id: 1, name: "Frontend Development", count: 15 },
+  { id: 2, name: "Backend Development", count: 12 },
+  { id: 3, name: "DevOps", count: 8 },
+];
+
 type SidebarItemProps = {
   icon: React.ElementType;
   label: string;
   href: string;
   active?: boolean;
   collapsed?: boolean;
-  dropdownItems?: Array<{
-    label: string;
-    href: string;
-    icon?: React.ElementType;
-  }>;
+  dropdownContent?: {
+    items: any[];
+    viewAllLink: string;
+  };
 };
 
-const SidebarItem = ({ icon: Icon, label, href, active, collapsed, dropdownItems }: SidebarItemProps) => {
-  if (dropdownItems) {
+const SidebarItem = ({ icon: Icon, label, href, active, collapsed, dropdownContent }: SidebarItemProps) => {
+  if (dropdownContent) {
     return (
-      <DropdownMenu>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Link
-                  to={href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-secondary text-foreground hover:text-foreground"
-                  )}
-                >
-                  <Icon size={20} />
-                  {!collapsed && <span>{label}</span>}
-                </Link>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
-          </Tooltip>
-        </TooltipProvider>
-        <DropdownMenuContent
-          className="w-56 bg-popover p-2"
-          side="right"
-          align="start"
-          alignOffset={-4}
-        >
-          {dropdownItems.map((item) => (
-            <DropdownMenuItem key={item.label} asChild>
+      <NavigationMenu>
+        <NavigationMenuList>
+          <NavigationMenuItem>
+            <NavigationMenuTrigger asChild>
               <Link
-                to={item.href}
-                className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-accent"
+                to={href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 transition-all w-full",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-foreground hover:text-foreground"
+                )}
               >
-                {item.icon && <item.icon size={16} />}
-                <span>{item.label}</span>
+                <Icon size={20} />
+                {!collapsed && <span>{label}</span>}
               </Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </NavigationMenuTrigger>
+            <NavigationMenuContent className="min-w-[220px] bg-popover p-2">
+              <div className="space-y-2">
+                {dropdownContent.items.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`${href}/${item.id}`}
+                    className="flex items-center justify-between rounded-md p-2 hover:bg-accent text-sm"
+                  >
+                    <span>{item.name}</span>
+                    {item.members && (
+                      <span className="text-xs text-muted-foreground">{item.members} members</span>
+                    )}
+                    {item.progress && (
+                      <span className="text-xs text-muted-foreground">{item.progress}</span>
+                    )}
+                    {item.count && (
+                      <span className="text-xs text-muted-foreground">{item.count} courses</span>
+                    )}
+                  </Link>
+                ))}
+                <div className="pt-2 mt-2 border-t">
+                  <Link
+                    to={dropdownContent.viewAllLink}
+                    className="block w-full text-center text-sm text-primary hover:underline"
+                  >
+                    View All
+                  </Link>
+                </div>
+              </div>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
     );
   }
 
@@ -172,34 +197,10 @@ export function Sidebar() {
           href="/courses"
           active={isActive("/courses")}
           collapsed={collapsed}
-          dropdownItems={[
-            { label: "In Progress", href: "/courses?filter=in-progress", icon: VideoIcon },
-            { label: "Completed", href: "/courses?filter=completed", icon: BookText },
-            { label: "Saved", href: "/courses?filter=saved", icon: BookOpen },
-            { label: "Course Settings", href: "/courses/settings", icon: Settings }
-          ]}
-        />
-
-        <SidebarItem
-          icon={BookText}
-          label="Catalog"
-          href="/catalog"
-          active={isActive("/catalog")}
-          collapsed={collapsed}
-          dropdownItems={[
-            { label: "Popular Courses", href: "/catalog?sort=popular", icon: School },
-            { label: "New Arrivals", href: "/catalog?sort=new", icon: BookText },
-            { label: "Categories", href: "/catalog/categories", icon: BookOpen },
-            { label: "Help Center", href: "/help", icon: BadgeHelp }
-          ]}
-        />
-
-        <SidebarItem
-          icon={BarChart}
-          label="Progress"
-          href="/progress"
-          active={isActive("/progress")}
-          collapsed={collapsed}
+          dropdownContent={{
+            items: userCourses,
+            viewAllLink: "/courses"
+          }}
         />
 
         <SidebarItem
@@ -208,11 +209,30 @@ export function Sidebar() {
           href="/groups"
           active={isActive("/groups")}
           collapsed={collapsed}
-          dropdownItems={[
-            { label: "My Groups", href: "/groups/my", icon: Users },
-            { label: "Discover", href: "/groups/discover", icon: BookOpen },
-            { label: "Create Group", href: "/groups/create", icon: Settings }
-          ]}
+          dropdownContent={{
+            items: userGroups,
+            viewAllLink: "/groups"
+          }}
+        />
+
+        <SidebarItem
+          icon={BookText}
+          label="Catalog"
+          href="/catalog"
+          active={isActive("/catalog")}
+          collapsed={collapsed}
+          dropdownContent={{
+            items: catalogItems,
+            viewAllLink: "/catalog"
+          }}
+        />
+
+        <SidebarItem
+          icon={BarChart}
+          label="Progress"
+          href="/progress"
+          active={isActive("/progress")}
+          collapsed={collapsed}
         />
 
         <SidebarItem
@@ -249,3 +269,4 @@ export function Sidebar() {
 }
 
 export default Sidebar;
+
