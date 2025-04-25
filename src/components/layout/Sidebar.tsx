@@ -67,19 +67,16 @@ const SidebarItem = ({ icon: Icon, label, href, active, collapsed, dropdownConte
       <NavigationMenu>
         <NavigationMenuList>
           <NavigationMenuItem>
-            <NavigationMenuTrigger asChild>
-              <Link
-                to={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 transition-all w-full",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-foreground hover:text-foreground"
-                )}
-              >
+            <NavigationMenuTrigger>
+              <div className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 transition-all w-full",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-secondary text-foreground hover:text-foreground"
+              )}>
                 <Icon size={20} />
                 {!collapsed && <span>{label}</span>}
-              </Link>
+              </div>
             </NavigationMenuTrigger>
             <NavigationMenuContent className="min-w-[220px] bg-popover p-2">
               <div className="space-y-2">
@@ -269,4 +266,3 @@ export function Sidebar() {
 }
 
 export default Sidebar;
-
