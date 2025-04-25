@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -25,7 +24,7 @@ const unitLessons = [
     unitId: "3",
     title: "Introduction to Context API",
     description: "Learn about the React Context API and its use cases",
-    type: "video",
+    type: "video" as const,
     duration: "15:20",
     completed: true,
     locked: false,
@@ -37,7 +36,7 @@ const unitLessons = [
     unitId: "3",
     title: "Creating a Context Provider",
     description: "Step-by-step guide to creating your first Context Provider",
-    type: "video",
+    type: "video" as const,
     duration: "12:45",
     completed: true,
     locked: false,
@@ -49,7 +48,7 @@ const unitLessons = [
     unitId: "3",
     title: "Consuming Context with useContext",
     description: "How to use the useContext hook to access context values",
-    type: "video",
+    type: "video" as const,
     duration: "10:30",
     completed: false,
     locked: false,
@@ -61,7 +60,7 @@ const unitLessons = [
     unitId: "3",
     title: "Context API Best Practices",
     description: "Learn the best practices for using Context API in your React applications",
-    type: "text",
+    type: "text" as const,
     duration: "8 min read",
     completed: false,
     locked: false
@@ -72,7 +71,7 @@ const unitLessons = [
     unitId: "3",
     title: "Context API vs Redux",
     description: "Comparing Context API with Redux for state management",
-    type: "text",
+    type: "text" as const,
     duration: "10 min read",
     completed: false,
     locked: true
@@ -88,7 +87,7 @@ const unitQuizzes = [
     description: "Test your knowledge of React Context API",
     questionCount: 10,
     duration: "15 min",
-    status: "not-started",
+    status: "not-started" as const,
     passingScore: 70
   }
 ];
