@@ -6,20 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export interface AssignmentData {
-  id: string;
-  moduleId: string;
-  unitId: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  status: "not-started" | "in-progress" | "submitted" | "graded";
-  estimatedTime: string;
-  score?: number;
-  maxScore: number;
-  fileCount: number;
-}
+import { AssignmentData } from "@/types/unit";
 
 interface AssignmentCardProps {
   assignment: AssignmentData;

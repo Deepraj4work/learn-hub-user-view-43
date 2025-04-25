@@ -4,13 +4,15 @@ import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, FileText, Clock, BookOpen } from "lucide-react";
+import { ChevronLeft, FileText, Clock, BookOpen, FileCheck, GraduationCap } from "lucide-react";
 
 interface UnitHeaderProps {
   moduleId: string;
   title: string;
   description: string;
   lessonCount: number;
+  quizCount?: number;
+  assignmentCount?: number;
   totalDuration: string;
   progress: number;
 }
@@ -20,6 +22,8 @@ export function UnitHeader({
   title, 
   description, 
   lessonCount, 
+  quizCount = 0,
+  assignmentCount = 0,
   totalDuration, 
   progress 
 }: UnitHeaderProps) {
@@ -45,6 +49,18 @@ export function UnitHeader({
               <FileText size={16} />
               <span>{lessonCount} Lessons</span>
             </div>
+            {quizCount > 0 && (
+              <div className="flex items-center gap-1">
+                <GraduationCap size={16} />
+                <span>{quizCount} Quizzes</span>
+              </div>
+            )}
+            {assignmentCount > 0 && (
+              <div className="flex items-center gap-1">
+                <FileCheck size={16} />
+                <span>{assignmentCount} Assignments</span>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <Clock size={16} />
               <span>{totalDuration}</span>

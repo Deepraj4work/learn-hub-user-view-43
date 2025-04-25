@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { UnitHeader } from "@/components/courses/UnitHeader";
 import { UnitContent } from "@/components/courses/UnitContent";
-import { unitLessons, unitQuizzes } from "@/data/unitData";
+import { unitLessons, unitQuizzes, unitAssignments } from "@/data/unitData";
 
 export function UnitDetail() {
   const { moduleId, unitId } = useParams();
@@ -30,8 +30,12 @@ export function UnitDetail() {
   }, []);
   
   // Calculate unit progress
-  const totalItems = unitLessons.length;
-  const completedItems = unitLessons.filter(lesson => lesson.completed).length;
+  const totalItems = unitLessons.length + unitQuizzes.length + unitAssignments.length;
+  const completedLessons = unitLessons.filter(lesson => lesson.completed).length;
+  const completedQuizzes = unitQuizzes.filter(quiz => quiz.status === "completed").length;
+  const completedAssignments = unitAssignments.filter(assignment => 
+    assignment.status === "submitted" || assignment.status === "graded").length;
+  const completedItems = completedLessons + completedQuizzes + completedAssignments;
   const unitProgress = Math.floor((completedItems / totalItems) * 100);
 
   return (
@@ -44,7 +48,9 @@ export function UnitDetail() {
             moduleId={moduleId || ""}
             title="Context API & useContext"
             description="Managing global state with React Context and the useContext hook. Learn how to create, provide, and consume context in your React applications."
-            lessonCount={6}
+            lessonCount={unitLessons.length}
+            assignmentCount={unitAssignments.length}
+            quizCount={unitQuizzes.length}
             totalDuration="1h 45m"
             progress={unitProgress}
           />
@@ -52,6 +58,7 @@ export function UnitDetail() {
           <UnitContent
             lessons={unitLessons}
             quizzes={unitQuizzes}
+            assignments={unitAssignments}
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />

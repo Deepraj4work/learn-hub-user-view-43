@@ -1,4 +1,5 @@
-import { LessonData, QuizData } from "@/types/unit";
+
+import { LessonData, QuizData, AssignmentData } from "@/types/unit";
 
 export const unitLessons: LessonData[] = [
   {
@@ -71,6 +72,47 @@ export const unitQuizzes: QuizData[] = [
     questionCount: 10,
     duration: "15 min",
     status: "not-started",
-    passingScore: 70
+    passingScore: 70,
+    dueDate: "2025-05-15"
+  },
+  {
+    id: "2",
+    moduleId: "2",
+    unitId: "3",
+    title: "Context Providers Mid-Term",
+    description: "Comprehensive assessment on Context Providers and Consumers",
+    questionCount: 15,
+    duration: "25 min",
+    status: "completed",
+    passingScore: 75,
+    score: 82,
+    dueDate: "2025-05-10"
+  }
+];
+
+export const unitAssignments: AssignmentData[] = [
+  {
+    id: "1",
+    moduleId: "2",
+    unitId: "3",
+    title: "Build a Theme Switcher",
+    description: "Create a dark/light theme switcher using React Context API",
+    dueDate: "2025-05-20",
+    status: "not-started",
+    estimatedTime: "2 hours",
+    maxScore: 100,
+    fileCount: 3
+  },
+  {
+    id: "2",
+    moduleId: "2",
+    unitId: "3",
+    title: "Global State Management App",
+    description: "Implement a shopping cart using Context API for global state management",
+    dueDate: "2025-05-05",
+    status: "submitted",
+    estimatedTime: "4 hours",
+    maxScore: 100,
+    fileCount: 5
   }
 ];
