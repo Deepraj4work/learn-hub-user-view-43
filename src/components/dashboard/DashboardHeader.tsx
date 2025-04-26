@@ -33,14 +33,16 @@ export function DashboardHeader() {
             <MessageCircle className="h-5 w-5" />
           </Button>
 
-          <NotificationCenter trigger={
-            <Button size="icon" variant="ghost" className="relative">
-              <BellDot className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                3
-              </Badge>
-            </Button>
-          } />
+          <NotificationCenter 
+            trigger={
+              <Button size="icon" variant="ghost" className="relative">
+                <BellDot className="h-5 w-5" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  3
+                </Badge>
+              </Button>
+            } 
+          />
           
           <ThemeSwitcher />
           
