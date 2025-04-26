@@ -5,10 +5,25 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { UnitHeader } from "@/components/courses/UnitHeader";
 import { UnitContent } from "@/components/courses/UnitContent";
 import { unitLessons, unitQuizzes, unitAssignments } from "@/data/unitData";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Bookmark, Share2, Award } from "lucide-react";
 
 export function UnitDetail() {
   const { moduleId, unitId } = useParams();
   const [activeTab, setActiveTab] = useState("lessons");
+  const [isBookmarked, setIsBookmarked] = useState(false);
   
   // Animation effect when component mounts
   useEffect(() => {
@@ -27,6 +42,15 @@ export function UnitDetail() {
         card.classList.remove("opacity-0");
       }, 200 + 100 * index);
     });
+    
+    // Add entrance animation to action buttons
+    const actionButtons = document.querySelectorAll(".action-button");
+    actionButtons.forEach((button, index) => {
+      setTimeout(() => {
+        button.classList.add("animate-fade-in");
+        button.classList.remove("opacity-0");
+      }, 500 + 100 * index);
+    });
   }, []);
   
   // Calculate unit progress
@@ -38,8 +62,23 @@ export function UnitDetail() {
   const completedItems = completedLessons + completedQuizzes + completedAssignments;
   const unitProgress = Math.floor((completedItems / totalItems) * 100);
 
+  const toggleBookmark = () => {
+    setIsBookmarked(!isBookmarked);
+    toast.success(isBookmarked ? "Unit removed from bookmarks" : "Unit added to bookmarks");
+  };
+
+  const handleShare = () => {
+    // In a real app, this would use the Web Share API or copy to clipboard
+    toast.success("Share link copied to clipboard");
+  };
+
+  const handleRequestCertificate = () => {
+    // In a real app, this would send a request to the server
+    toast.success("Certificate request submitted! You will receive an email when it's ready.");
+  };
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       <DashboardHeader />
       
       <main className="flex-1">
@@ -54,6 +93,58 @@ export function UnitDetail() {
             totalDuration="1h 45m"
             progress={unitProgress}
           />
+          
+          <div className="flex items-center justify-end gap-3 mb-6 opacity-0 action-button">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleBookmark}
+              className="flex items-center gap-1 transition-all duration-300 hover:bg-primary/10"
+            >
+              <Bookmark size={16} className={isBookmarked ? "fill-primary text-primary" : ""} />
+              <span>{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="flex items-center gap-1 transition-all duration-300 hover:bg-primary/10"
+            >
+              <Share2 size={16} />
+              <span>Share</span>
+            </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline"
+                  size="sm" 
+                  className="flex items-center gap-1 transition-all duration-300 hover:bg-primary/10"
+                  disabled={unitProgress < 100}
+                >
+                  <Award size={16} />
+                  <span>Get Certificate</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="glass-card">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Request Unit Completion Certificate</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {unitProgress < 100 
+                      ? "You need to complete 100% of the unit to request a certificate."
+                      : "Congratulations on completing this unit! You can now request a certificate of completion."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRequestCertificate} disabled={unitProgress < 100}>
+                    Request Certificate
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
           
           <UnitContent
             lessons={unitLessons}
