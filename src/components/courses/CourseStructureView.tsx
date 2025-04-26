@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, BookOpen, Clock, Video, FileText, CheckCircle, Lock } from "lucide-react";
+import { LessonType } from "@/types/unit";
 
 interface LessonItem {
   id: string;
   title: string;
   duration: string;
-  type: "video" | "text" | "quiz" | "assignment";
+  type: LessonType | "quiz" | "assignment";
   completed: boolean;
   locked: boolean;
 }

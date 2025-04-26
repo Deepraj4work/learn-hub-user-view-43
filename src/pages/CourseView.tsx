@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import CourseDetail from "@/components/courses/CourseDetail";
 import CourseStructureView from "@/components/courses/CourseStructureView";
+import { LessonType } from "@/types/unit";
 
 // Sample course data structure
 const courseModules = [
@@ -24,7 +25,7 @@ const courseModules = [
             id: "1-1-1",
             title: "Introduction to React",
             duration: "10:30",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -32,7 +33,7 @@ const courseModules = [
             id: "1-1-2",
             title: "Setting up your environment",
             duration: "8:45",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -40,7 +41,7 @@ const courseModules = [
             id: "1-1-3",
             title: "Your first React component",
             duration: "15:20",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           }
@@ -57,7 +58,7 @@ const courseModules = [
             id: "1-2-1",
             title: "JSX Syntax",
             duration: "12:15",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -65,7 +66,7 @@ const courseModules = [
             id: "1-2-2",
             title: "JSX vs HTML",
             duration: "8 min read",
-            type: "text",
+            type: "text" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           }
@@ -90,7 +91,7 @@ const courseModules = [
             id: "2-1-1",
             title: "Introduction to Hooks",
             duration: "8:45",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -98,7 +99,7 @@ const courseModules = [
             id: "2-1-2",
             title: "Hooks vs Class Components",
             duration: "10 min read",
-            type: "text",
+            type: "text" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           }
@@ -115,7 +116,7 @@ const courseModules = [
             id: "2-2-1",
             title: "Managing State with useState",
             duration: "14:30",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -123,7 +124,7 @@ const courseModules = [
             id: "2-2-2",
             title: "Side Effects with useEffect",
             duration: "16:45",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: true,
             locked: false
           },
@@ -131,7 +132,7 @@ const courseModules = [
             id: "2-2-3",
             title: "Cleanup with useEffect",
             duration: "12:20",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: false
           },
@@ -139,7 +140,7 @@ const courseModules = [
             id: "2-2-4",
             title: "Practical Exercise",
             duration: "20 min",
-            type: "assignment",
+            type: "assignment" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: false
           }
@@ -156,7 +157,7 @@ const courseModules = [
             id: "2-3-1",
             title: "Introduction to Context API",
             duration: "10:15",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: false
           },
@@ -164,7 +165,7 @@ const courseModules = [
             id: "2-3-2",
             title: "Creating a Context",
             duration: "18:45",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: false
           },
@@ -172,7 +173,7 @@ const courseModules = [
             id: "2-3-3",
             title: "Using the useContext Hook",
             duration: "14:30",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: true
           }
@@ -197,7 +198,7 @@ const courseModules = [
             id: "3-1-1",
             title: "Planning Your Application",
             duration: "15 min read",
-            type: "text",
+            type: "text" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: true
           },
@@ -205,7 +206,7 @@ const courseModules = [
             id: "3-1-2",
             title: "Folder Structure Best Practices",
             duration: "12:30",
-            type: "video",
+            type: "video" as LessonType | "quiz" | "assignment",
             completed: false,
             locked: true
           }
