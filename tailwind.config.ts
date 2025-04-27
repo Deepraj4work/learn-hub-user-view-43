@@ -53,6 +53,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        gold: "hsl(var(--gold))",
+        silver: "hsl(var(--silver))",
+        bronze: "hsl(var(--bronze))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -92,6 +95,13 @@ export default {
           "0%": { transform: "translateX(100%)" },
           "100%": { transform: "translateX(0)" }
         },
+        "shimmer": {
+          "100%": { transform: "translateX(100%)" }
+        },
+        "spotlight": {
+          "0%": { opacity: "0", transform: "translate(-72%, -62%) scale(0.5)" },
+          "100%": { opacity: "0.8", transform: "translate(-50%,-40%) scale(1)" }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -100,6 +110,12 @@ export default {
         "scale-in": "scale-in 0.2s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "enter": "fade-in 0.3s ease-out, scale-in 0.2s ease-out",
+        "shimmer": "shimmer 2s linear infinite",
+        "spotlight": "spotlight 2s ease .75s 1 forwards",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "luxury-gradient": "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--gold)))"
       },
     },
   },
