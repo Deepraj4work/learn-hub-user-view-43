@@ -18,12 +18,31 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Bookmark, Share2, Award } from "lucide-react";
+import { Bookmark, Share2, Award, BookOpen } from "lucide-react";
+import { ImmersiveReader } from "@/components/courses/ImmersiveReader";
+
+// Sample unit content for immersive reader
+const unitContentForReader = `
+<h1>Context API & useContext</h1>
+
+<p>Managing global state with React Context and the useContext hook is an essential skill for modern React development. This unit covers all the fundamentals you need to understand context-based state management.</p>
+
+<h2>What You'll Learn</h2>
+<ul>
+  <li>How to create and provide context in React applications</li>
+  <li>When to use Context API vs other state management solutions</li>
+  <li>Best practices for structuring your context providers</li>
+  <li>Advanced patterns for optimizing context usage</li>
+</ul>
+
+<p>By the end of this unit, you'll be able to implement global state management solutions that are both efficient and maintainable.</p>
+`;
 
 export function UnitDetail() {
   const { moduleId, unitId } = useParams();
   const [activeTab, setActiveTab] = useState("lessons");
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isImmersiveReaderOpen, setIsImmersiveReaderOpen] = useState(false);
   
   // Animation effect when component mounts
   useEffect(() => {
@@ -76,6 +95,11 @@ export function UnitDetail() {
     // In a real app, this would send a request to the server
     toast.success("Certificate request submitted! You will receive an email when it's ready.");
   };
+  
+  const handleOpenImmersiveReader = () => {
+    setIsImmersiveReaderOpen(true);
+    toast.success("Immersive Reader activated");
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
@@ -95,6 +119,16 @@ export function UnitDetail() {
           />
           
           <div className="flex items-center justify-end gap-3 mb-6 opacity-0 action-button">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenImmersiveReader}
+              className="flex items-center gap-1 transition-all duration-300 hover:bg-primary/10"
+            >
+              <BookOpen size={16} />
+              <span>Immersive Reader</span>
+            </Button>
+            
             <Button
               variant="outline"
               size="sm"
@@ -155,6 +189,14 @@ export function UnitDetail() {
           />
         </div>
       </main>
+      
+      {/* Immersive Reader Component */}
+      <ImmersiveReader
+        title="Context API & useContext"
+        content={unitContentForReader}
+        isOpen={isImmersiveReaderOpen}
+        onClose={() => setIsImmersiveReaderOpen(false)}
+      />
     </div>
   );
 }

@@ -131,6 +131,27 @@
   .animate-pulse-subtle {
     animation: pulse-subtle 4s ease-in-out infinite;
   }
+  
+  /* Immersive Reader Styles */
+  .immersive-reader {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50;
+  }
+  
+  .immersive-reader-heading {
+    @apply text-3xl sm:text-4xl md:text-5xl font-bold mb-8 text-center;
+  }
+  
+  .immersive-reader-text {
+    @apply text-xl leading-relaxed max-w-prose mx-auto;
+  }
+  
+  .immersive-reader-controls {
+    @apply fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-full shadow-lg px-6 py-3 flex items-center gap-4;
+  }
+  
+  .immersive-reader-button {
+    @apply transition-all duration-300 hover:scale-110;
+  }
 }
 
 @keyframes slideIn {
