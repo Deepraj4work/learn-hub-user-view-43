@@ -115,6 +115,15 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
 
 type ToastActionElement = React.ReactElement<typeof ToastAction>
 
+// Define the Toast interface here to avoid circular dependencies
+export interface ToastInfo {
+  id: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  variant?: "default" | "destructive";
+}
+
 export {
   type ToastProps,
   type ToastActionElement,
@@ -125,13 +134,4 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
-}
-
-// Export a Toast type for use in other files
-export interface Toast {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: React.ReactNode
-  variant?: "default" | "destructive"
 }
