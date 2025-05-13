@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -40,8 +40,13 @@ export function ImmersiveReader({
     if (isOpen && content) {
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
-      setPlainText(tempDiv.textContent || tempDiv.innerText || "");
+      const extractedText = tempDiv.textContent || tempDiv.innerText || "";
+      setPlainText(extractedText);
       setHighlightedContent(DOMPurify.sanitize(content));
+      
+      // Debug log to check content
+      console.log("Extracted text length:", extractedText.length);
+      console.log("First 100 chars:", extractedText.substring(0, 100));
     }
   }, [isOpen, content]);
 
@@ -107,7 +112,9 @@ export function ImmersiveReader({
     if (speaking) {
       paused ? resume() : pause();
     } else {
-      speak(`${title}. ${plainText}`);
+      // Pass the full text to the speak function
+      speak(plainText);
+      console.log("Speaking text of length:", plainText.length);
     }
   };
 
@@ -128,6 +135,9 @@ export function ImmersiveReader({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background">
+        {/* Add DialogTitle for accessibility */}
+        <DialogTitle className="sr-only">Immersive Reader</DialogTitle>
+        
         {/* Header */}
         <div className="flex items-center justify-between border-b p-4">
           <div className="flex items-center gap-2">
