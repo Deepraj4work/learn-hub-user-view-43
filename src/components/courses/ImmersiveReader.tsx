@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Volume2, Pause, Play, Settings, BookText, LayoutGrid, MinusCircle, PlusCircle, VolumeX } from "lucide-react";
+import { ArrowLeft, Volume2, Pause, Play, Settings, MinusCircle, PlusCircle, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { Slider } from "@/components/ui/slider";
@@ -15,7 +15,8 @@ interface ImmersiveReaderProps {
 }
 
 export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveReaderProps) {
-  const [fontSize, setFontSize] = useState("text-xl");
+  // State for reader settings
+  const [fontSize, setFontSize] = useState("text-2xl");  // Default larger text
   const [lineHeight, setLineHeight] = useState("leading-relaxed");
   const [plainText, setPlainText] = useState("");
   const [processedContent, setProcessedContent] = useState("");
@@ -23,6 +24,7 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
   const [rate, setRate] = useState(1);
   const [pitch, setPitch] = useState(1);
   const [volume, setVolume] = useState(1);
+  const [autoStarted, setAutoStarted] = useState(false);
   
   // Ref for the content container to enable auto-scrolling
   const contentRef = useRef<HTMLDivElement>(null);
@@ -87,9 +89,9 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         const beforeTextNode = document.createTextNode(beforeWord);
         const afterTextNode = document.createTextNode(afterWord);
         
-        // Create highlight span
+        // Create highlight span with larger text and animation
         const highlightSpan = document.createElement("span");
-        highlightSpan.className = "bg-reader-highlight animate-highlight-pulse text-foreground font-bold px-0.5 py-0.5 rounded text-2xl";
+        highlightSpan.className = "bg-primary text-white animate-highlight-pulse font-bold px-1 py-0.5 rounded text-3xl";
         highlightSpan.textContent = currentWord;
         
         // Replace the original node with our three new nodes
@@ -131,6 +133,24 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
     elementRef: contentRef,
     onHighlight: handleHighlight
   });
+  
+  // Auto-start speech when dialog opens
+  useEffect(() => {
+    if (isOpen && supported && !autoStarted) {
+      // Small delay to ensure content is ready
+      const timer = setTimeout(() => {
+        speak();
+        setAutoStarted(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Reset auto-started flag when closed
+    if (!isOpen) {
+      setAutoStarted(false);
+    }
+  }, [isOpen, speak, supported, autoStarted]);
   
   // Stop speech when component unmounts or dialog closes
   useEffect(() => {
