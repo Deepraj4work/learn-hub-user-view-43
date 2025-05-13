@@ -40,9 +40,9 @@ export function ImmersiveReader({
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [textContent, setTextContent] = useState("");
+  const [wordElements, setWordElements] = useState<{[word: string]: HTMLElement[]}>({});
   
   const contentRef = useRef<HTMLDivElement>(null);
-  const wordsRef = useRef<HTMLSpanElement[]>([]);
   const fullTextRef = useRef<string>("");
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
@@ -114,12 +114,15 @@ export function ImmersiveReader({
     }
   }, [isOpen, content, title]);
 
-  // Process HTML content for highlighting
+  // Process HTML content for highlighting, ensuring each word is wrapped correctly
   const processContentForHighlighting = (htmlContent: string) => {
     try {
       // Create a document from the HTML content
       const parser = new DOMParser();
       const doc = parser.parseFromString(DOMPurify.sanitize(htmlContent), 'text/html');
+      
+      // Word index counter for data-index attributes
+      let wordIndex = 0;
       
       // Process all text nodes
       const walkNode = (node: Node) => {
@@ -128,23 +131,30 @@ export function ImmersiveReader({
           // Create a document fragment to replace this text node
           const fragment = document.createDocumentFragment();
           
-          // Get the text and split it into words
+          // Get the text and split it preserving punctuation and spacing
           const text = node.textContent;
-          const words = text.split(/(\s+)/);
+          // Match actual words (including punctuation) and spaces separately
+          const wordRegex = /(\S+|\s+)/g;
+          let match;
           
-          words.forEach((part) => {
-            if (part.trim()) {
-              // It's a word - wrap in span
+          let lastIndex = 0;
+          while ((match = wordRegex.exec(text)) !== null) {
+            const word = match[0];
+            
+            if (word.trim()) {
+              // It's a word - wrap in span with data attributes
               const span = document.createElement('span');
               span.className = 'reader-word';
-              span.dataset.word = part.trim();
-              span.textContent = part;
+              span.dataset.index = wordIndex.toString();
+              span.dataset.word = word;
+              span.textContent = word;
               fragment.appendChild(span);
+              wordIndex++;
             } else {
               // It's whitespace - keep as is
-              fragment.appendChild(document.createTextNode(part));
+              fragment.appendChild(document.createTextNode(word));
             }
-          });
+          }
           
           // Replace the original text node with our fragment
           if (node.parentNode) {
@@ -164,6 +174,7 @@ export function ImmersiveReader({
       
       // Set the processed HTML content
       setProcessedContent(doc.body.innerHTML);
+      console.log(`Processed content for highlighting with ${wordIndex} words`);
     } catch (error) {
       console.error("Error processing content for highlighting:", error);
       setProcessedContent(htmlContent); // Fallback to original content
@@ -204,26 +215,37 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
-  // Rebuild the words reference array when the processed content changes
+  // Index all words by their content after the content is rendered
   useEffect(() => {
     if (contentRef.current && processedContent) {
       // Give time for the DOM to update
       setTimeout(() => {
         if (contentRef.current) {
-          wordsRef.current = Array.from(contentRef.current.querySelectorAll('.reader-word'));
-          console.log(`Found ${wordsRef.current.length} words for highlighting`);
+          const spans = Array.from(contentRef.current.querySelectorAll('.reader-word'));
+          const wordMap: {[word: string]: HTMLElement[]} = {};
+          
+          spans.forEach(span => {
+            const wordText = span.textContent?.trim().toLowerCase() || "";
+            if (!wordMap[wordText]) {
+              wordMap[wordText] = [];
+            }
+            wordMap[wordText].push(span as HTMLElement);
+          });
+          
+          setWordElements(wordMap);
+          console.log(`Indexed ${spans.length} words for highlighting`);
         }
       }, 100);
     }
   }, [processedContent]);
 
-  // Highlight the current word being spoken
+  // Highlight the current word being spoken and scroll to it
   useEffect(() => {
     if (!speaking || !currentWordPosition || !contentRef.current) {
       // Clear all highlights when not speaking
       const allWords = contentRef.current?.querySelectorAll('.reader-word');
       allWords?.forEach(word => {
-        word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+        word.classList.remove('highlight-word');
       });
       return;
     }
@@ -231,30 +253,43 @@ export function ImmersiveReader({
     try {
       // Clear previous highlights
       const allWords = contentRef.current.querySelectorAll('.reader-word');
-      allWords?.forEach(word => {
-        word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+      allWords.forEach(word => {
+        word.classList.remove('highlight-word');
       });
       
-      // Find the word to highlight
-      const { word: currentWord } = currentWordPosition;
+      // Find all words with the same content (since words might repeat in the text)
+      const { word: wordText } = currentWordPosition;
+      const normalizedWord = wordText.toLowerCase().trim();
       
-      // Find the word element by its content
-      const wordElement = Array.from(allWords).find(el => 
-        el.textContent?.trim().toLowerCase() === currentWord.toLowerCase()
-      );
+      // First try to find words by looking at their text content
+      const spans = Array.from(contentRef.current.querySelectorAll(`.reader-word`));
       
-      if (wordElement) {
+      // Find the best match (exact match or closest position)
+      let bestMatch: HTMLElement | null = null;
+      
+      for (const span of spans) {
+        const spanText = span.textContent?.toLowerCase().trim() || "";
+        if (spanText === normalizedWord) {
+          // Found an exact match
+          bestMatch = span as HTMLElement;
+          break;
+        }
+      }
+      
+      if (bestMatch) {
         // Apply highlighting
-        wordElement.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+        bestMatch.classList.add('highlight-word');
         
-        // Scroll to the element if needed
-        wordElement.scrollIntoView({
+        // Scroll to the element smoothly
+        bestMatch.scrollIntoView({
           behavior: 'smooth',
           block: 'center',
           inline: 'nearest'
         });
         
-        console.log(`Highlighted word: "${currentWord}"`);
+        console.log(`Highlighted word: "${normalizedWord}"`);
+      } else {
+        console.warn(`No matching element found for word "${normalizedWord}"`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
@@ -411,7 +446,24 @@ export function ImmersiveReader({
           </div>
         )}
 
-        {/* Content */}
+        {/* Content - with custom styling for word highlighting */}
+        <style jsx>{`
+          .highlight-word {
+            background-color: rgba(var(--primary) / 0.3);
+            color: hsl(var(--primary));
+            font-weight: bold;
+            border-radius: 0.25rem;
+            padding: 0 0.25rem;
+            transition: all 0.1s ease-in-out;
+            font-size: 1.05em;
+          }
+          
+          .reader-word {
+            transition: all 0.1s ease-in-out;
+            display: inline-block;
+          }
+        `}</style>
+
         <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30">
           <div className="max-w-2xl mx-auto space-y-8">
             <h1 className="text-3xl font-bold">{title}</h1>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { cleanTextForSpeech } from "@/lib/utils";
@@ -18,7 +19,7 @@ interface UseSpeechSynthesisReturn {
   speaking: boolean;
   paused: boolean;
   supported: boolean;
-  currentWordPosition: { start: number; end: number; word: string } | null;
+  currentWordPosition: { start: number; end: number; word: string; charIndex: number } | null;
 }
 
 export function useSpeechSynthesis({
@@ -31,13 +32,18 @@ export function useSpeechSynthesis({
   const [speaking, setSpeaking] = useState(false);
   const [paused, setPaused] = useState(false);
   const [supported, setSupported] = useState(false);
-  const [currentWordPosition, setCurrentWordPosition] = useState<{ start: number; end: number; word: string } | null>(null);
+  const [currentWordPosition, setCurrentWordPosition] = useState<{ 
+    start: number; 
+    end: number; 
+    word: string;
+    charIndex: number;
+  } | null>(null);
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const textContentRef = useRef<string>("");
   const chunksRef = useRef<string[]>([]);
   const currentChunkIndexRef = useRef<number>(0);
-  const wordBoundariesRef = useRef<{text: string, boundaries: {word: string, start: number, end: number}[]}>(
+  const wordBoundariesRef = useRef<{text: string, boundaries: {word: string, start: number, end: number, charIndex: number}[]}>(
     {text: "", boundaries: []}
   );
   
@@ -78,24 +84,24 @@ export function useSpeechSynthesis({
     try {
       const cleanedText = cleanTextForSpeech(text);
       
-      // Split text into words and track their positions
-      const words = cleanedText.split(/\s+/);
-      const boundaries: {word: string, start: number, end: number}[] = [];
+      // Split text with regex that preserves punctuation and spacing
+      const wordRegex = /\S+|\s+/g;
+      const matches = [...cleanedText.matchAll(wordRegex)];
+      const boundaries: {word: string, start: number, end: number, charIndex: number}[] = [];
       
-      let currentPosition = 0;
-      words.forEach(word => {
-        if (word) {
-          const start = cleanedText.indexOf(word, currentPosition);
-          const end = start + word.length;
-          
+      matches.forEach(match => {
+        const word = match[0];
+        const start = match.index || 0;
+        const end = start + word.length;
+        
+        // Only add non-whitespace segments as actual words
+        if (word.trim()) {
           boundaries.push({
-            word,
+            word: word,
             start,
-            end
+            end,
+            charIndex: start
           });
-          
-          // Move position to after this word
-          currentPosition = end + 1;
         }
       });
       
@@ -181,31 +187,47 @@ export function useSpeechSynthesis({
         handleSpeechError();
       };
       
-      // Word boundary event - This is the critical part for highlighting
+      // Word boundary event - Critical part for highlighting
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           try {
-            // Get the word from the text being spoken
-            let charIndex = event.charIndex;
-            let wordLength = 0;
+            // Get the character index from the event
+            const charIndex = event.charIndex;
+            console.log(`Word boundary at character index: ${charIndex}`);
             
-            // Find which word we're at
-            const currentText = wordBoundariesRef.current.text;
-            const textUpToCharIndex = currentText.substring(0, charIndex);
-            const wordCount = textUpToCharIndex.split(/\s+/).filter(Boolean).length;
+            // Find the closest word boundary to this charIndex
+            const boundaries = wordBoundariesRef.current.boundaries;
+            let closestBoundary = null;
+            let minDistance = Infinity;
             
-            // Get the corresponding word from our pre-calculated boundaries
-            const boundary = wordBoundariesRef.current.boundaries[wordCount];
+            for (const boundary of boundaries) {
+              // Find the boundary that contains or is closest to this charIndex
+              if (charIndex >= boundary.start && charIndex < boundary.end) {
+                // Direct match - character is within this word's boundaries
+                closestBoundary = boundary;
+                break;
+              }
+              
+              // Calculate distance to this boundary
+              const distanceToStart = Math.abs(charIndex - boundary.start);
+              if (distanceToStart < minDistance) {
+                minDistance = distanceToStart;
+                closestBoundary = boundary;
+              }
+            }
             
-            if (boundary) {
-              // Set the current word position
+            if (closestBoundary) {
+              // Set the current word position with all needed info
               setCurrentWordPosition({
-                start: boundary.start,
-                end: boundary.end,
-                word: boundary.word
+                start: closestBoundary.start,
+                end: closestBoundary.end,
+                word: closestBoundary.word,
+                charIndex // Include the actual charIndex for debugging
               });
               
-              console.log(`Word boundary: "${boundary.word}" at ${boundary.start}-${boundary.end}`);
+              console.log(`Highlighting word: "${closestBoundary.word}" at ${closestBoundary.start}-${closestBoundary.end}, charIndex: ${charIndex}`);
+            } else {
+              console.warn(`No matching word found for character index ${charIndex}`);
             }
           } catch (error) {
             console.error("Error in boundary event handler:", error);
