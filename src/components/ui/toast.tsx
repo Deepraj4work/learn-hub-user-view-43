@@ -129,7 +129,7 @@ export {
 
 // Export a Toast type for use in other files
 export interface Toast {
-  id: string
+  id?: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: React.ReactNode
