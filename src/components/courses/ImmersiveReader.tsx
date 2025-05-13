@@ -1,10 +1,18 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, Volume2, Pause, Play, Settings, BookText, LayoutGrid } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ArrowLeft,
+  Pause,
+  Play,
+  Settings,
+  LayoutGrid,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
+import DOMPurify from "dompurify";
 
 interface ImmersiveReaderProps {
   title: string;
@@ -13,67 +21,107 @@ interface ImmersiveReaderProps {
   onClose: () => void;
 }
 
-export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveReaderProps) {
+export function ImmersiveReader({
+  title,
+  content,
+  isOpen,
+  onClose,
+}: ImmersiveReaderProps) {
   const [fontSize, setFontSize] = useState("text-xl");
   const [lineHeight, setLineHeight] = useState("leading-relaxed");
   const [plainText, setPlainText] = useState("");
-  
-  // Extract plain text from HTML content for speech synthesis
+  const [highlightedContent, setHighlightedContent] = useState("");
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
+
+  // Extract plain text from HTML content
   useEffect(() => {
     if (isOpen && content) {
-      // Create a temporary div to parse HTML
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
-      // Get text content without HTML tags
       setPlainText(tempDiv.textContent || tempDiv.innerText || "");
+      setHighlightedContent(DOMPurify.sanitize(content));
     }
   }, [isOpen, content]);
-  
-  // Speech synthesis integration
-  const { speak, stop, pause, resume, speaking, paused, supported } = useSpeechSynthesis({
-    text: `${title}. ${plainText}`,
+
+  const {
+    speak,
+    stop,
+    pause,
+    resume,
+    speaking,
+    paused,
+    supported,
+    currentWordPosition
+  } = useSpeechSynthesis({
     rate: 1,
     pitch: 1,
     volume: 1,
   });
-  
-  // Stop speech when component unmounts or dialog closes
+
+  // Clean up on unmount
   useEffect(() => {
-    if (!isOpen && speaking) {
+    return () => {
+      stop();
+    };
+  }, [stop]);
+
+  // Stop speech when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
       stop();
     }
-    return () => {
-      if (speaking) {
-        stop();
+  }, [isOpen, stop]);
+
+  // Highlight current word being spoken
+  useEffect(() => {
+    if (!speaking || !currentWordPosition || !plainText) return;
+    
+    try {
+      // Get the word being spoken
+      const { start, end } = currentWordPosition;
+      const word = plainText.substring(start, end).trim();
+      
+      if (!word) return;
+      
+      // Create a highlighted version of the content
+      const highlighted = DOMPurify.sanitize(content)
+        .replace(new RegExp(`(\\b${word}\\b)`, 'gi'), 
+                 '<span class="bg-primary/20 text-primary font-bold rounded-sm px-0.5">$1</span>');
+      
+      setHighlightedContent(highlighted);
+      
+      // Scroll to the highlighted word
+      const activeElements = contentRef.current?.querySelectorAll('.bg-primary/20');
+      if (activeElements && activeElements.length > 0) {
+        const activeElement = activeElements[0];
+        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    };
-  }, [isOpen, speaking, stop]);
-  
+    } catch (error) {
+      console.error("Error highlighting word:", error);
+    }
+  }, [currentWordPosition, plainText, speaking, content]);
+
   const togglePlayback = () => {
     if (speaking) {
-      if (paused) {
-        resume();
-      } else {
-        pause();
-      }
+      paused ? resume() : pause();
     } else {
-      speak();
+      speak(`${title}. ${plainText}`);
     }
   };
 
   const increaseFontSize = () => {
-    const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
-    const currentIndex = sizes.indexOf(fontSize);
-    if (currentIndex < sizes.length - 1) {
-      setFontSize(sizes[currentIndex + 1]);
+    const index = sizes.indexOf(fontSize);
+    if (index < sizes.length - 1) {
+      setFontSize(sizes[index + 1]);
     }
   };
 
   const decreaseFontSize = () => {
-    const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
-    const currentIndex = sizes.indexOf(fontSize);
-    if (currentIndex > 0) {
-      setFontSize(sizes[currentIndex - 1]);
+    const index = sizes.indexOf(fontSize);
+    if (index > 0) {
+      setFontSize(sizes[index - 1]);
     }
   };
 
@@ -83,40 +131,40 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         {/* Header */}
         <div className="flex items-center justify-between border-b p-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close Reader">
               <ArrowLeft size={18} />
             </Button>
             <h2 className="text-lg font-semibold">Immersive Reader</h2>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={decreaseFontSize}>
+            <Button variant="ghost" size="icon" onClick={decreaseFontSize} aria-label="Decrease font size">
               <span className="text-sm">A-</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={increaseFontSize}>
+            <Button variant="ghost" size="icon" onClick={increaseFontSize} aria-label="Increase font size">
               <span className="text-base font-bold">A+</span>
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Settings">
               <Settings size={18} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Exit Reader">
               <LayoutGrid size={18} />
             </Button>
           </div>
         </div>
-        
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-muted/30">
+        <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30">
           <div className="max-w-2xl mx-auto space-y-8">
             <h1 className="text-3xl font-bold">{title}</h1>
-            
-            <div className={cn("prose max-w-none", fontSize, lineHeight)}>
-              {/* This would be the parsed content */}
-              <div dangerouslySetInnerHTML={{ __html: content }} />
-            </div>
+            <div 
+              className={cn("prose max-w-none", fontSize, lineHeight)}
+              ref={contentRef}
+              dangerouslySetInnerHTML={{ __html: highlightedContent }}
+            />
           </div>
-        </div>
-        
-        {/* Audio controls */}
+        </ScrollArea>
+
+        {/* Audio Controls */}
         <div className="flex items-center justify-center p-4 border-t">
           {supported ? (
             <Button
@@ -124,6 +172,7 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
               size="lg"
               className="rounded-full w-14 h-14 flex items-center justify-center"
               onClick={togglePlayback}
+              aria-label={speaking && !paused ? "Pause Reading" : "Start Reading"}
             >
               {speaking && !paused ? (
                 <Pause className="h-6 w-6" />
