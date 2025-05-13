@@ -34,6 +34,7 @@ export function ImmersiveReader({
   const contentRef = useRef<HTMLDivElement>(null);
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
+  const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
 
   // Extract plain text from HTML content
   useEffect(() => {
@@ -41,14 +42,16 @@ export function ImmersiveReader({
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
       const extractedText = tempDiv.textContent || tempDiv.innerText || "";
-      setPlainText(extractedText);
+      
+      // Start with the title for better context
+      setPlainText(title + ". " + extractedText);
       setHighlightedContent(DOMPurify.sanitize(content));
       
       // Debug log to check content
       console.log("Extracted text length:", extractedText.length);
       console.log("First 100 chars:", extractedText.substring(0, 100));
     }
-  }, [isOpen, content]);
+  }, [isOpen, content, title]);
 
   const {
     speak,
@@ -79,7 +82,7 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
-  // Highlight current word being spoken
+  // Highlight current word being spoken and scroll to it
   useEffect(() => {
     if (!speaking || !currentWordPosition || !plainText) return;
     
@@ -93,7 +96,7 @@ export function ImmersiveReader({
       // Create a highlighted version of the content
       const highlighted = DOMPurify.sanitize(content)
         .replace(new RegExp(`(\\b${word}\\b)`, 'gi'), 
-                 '<span class="bg-primary/20 text-primary font-bold rounded-sm px-0.5">$1</span>');
+                '<span class="bg-primary/20 text-primary font-bold rounded-sm px-0.5">$1</span>');
       
       setHighlightedContent(highlighted);
       
@@ -132,6 +135,12 @@ export function ImmersiveReader({
     }
   };
 
+  const toggleLineHeight = () => {
+    const index = lineHeights.indexOf(lineHeight);
+    const nextIndex = (index + 1) % lineHeights.length;
+    setLineHeight(lineHeights[nextIndex]);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 bg-background">
@@ -152,6 +161,9 @@ export function ImmersiveReader({
             </Button>
             <Button variant="ghost" size="icon" onClick={increaseFontSize} aria-label="Increase font size">
               <span className="text-base font-bold">A+</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleLineHeight} aria-label="Toggle line spacing">
+              <span className="text-sm">↕</span>
             </Button>
             <Button variant="ghost" size="icon" aria-label="Settings">
               <Settings size={18} />
