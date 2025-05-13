@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -57,8 +56,9 @@ export default {
         silver: "hsl(var(--silver))",
         bronze: "hsl(var(--bronze))",
         reader: {
-          background: "hsl(0, 0%, 99%)",
+          background: "hsl(30, 30%, 98%)",
           text: "hsl(0, 0%, 10%)",
+          highlight: "hsl(var(--primary)/0.2)"
         },
       },
       borderRadius: {
@@ -106,6 +106,10 @@ export default {
           "0%": { opacity: "0", transform: "translate(-72%, -62%) scale(0.5)" },
           "100%": { opacity: "0.8", transform: "translate(-50%,-40%) scale(1)" }
         },
+        "highlight-pulse": {
+          "0%, 100%": { backgroundColor: "hsla(var(--primary), 0.1)" },
+          "50%": { backgroundColor: "hsla(var(--primary), 0.3)" }
+        }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -116,11 +120,24 @@ export default {
         "enter": "fade-in 0.3s ease-out, scale-in 0.2s ease-out",
         "shimmer": "shimmer 2s linear infinite",
         "spotlight": "spotlight 2s ease .75s 1 forwards",
+        "highlight-pulse": "highlight-pulse 2s ease-in-out infinite"
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "luxury-gradient": "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--gold)))"
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            'span.highlight': {
+              backgroundColor: 'hsl(var(--primary)/0.2)',
+              padding: '0 2px',
+              borderRadius: '2px',
+              fontWeight: '600'
+            }
+          }
+        }
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],
