@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface UseSpeechSynthesisProps {
   text?: string;
@@ -64,6 +64,24 @@ export function useSpeechSynthesis({
       .replace(/\. +/g, '. ')       // Normalize spaces after periods
       .replace(/ +\./g, '.')        // Normalize spaces before periods
       .trim();                      // Remove leading/trailing whitespace
+  }, []);
+  
+  // Handle speech errors gracefully
+  const handleSpeechError = useCallback(() => {
+    // Cancel any ongoing speech
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {
+      console.error("Error canceling speech synthesis:", e);
+    }
+    
+    // Reset state
+    setSpeaking(false);
+    setPaused(false);
+    setCurrentWordPosition(null);
+    
+    // Notify user
+    toast.error("There was a problem with the text-to-speech feature. Please try again.");
   }, []);
   
   // Prepare utterance with proper event handlers
@@ -165,29 +183,7 @@ export function useSpeechSynthesis({
       handleSpeechError();
       return null;
     }
-  }, [rate, pitch, volume, voice, supported, cleanTextForSpeech]);
-  
-  // Handle speech errors gracefully
-  const handleSpeechError = useCallback(() => {
-    // Cancel any ongoing speech
-    try {
-      window.speechSynthesis.cancel();
-    } catch (e) {
-      console.error("Error canceling speech synthesis:", e);
-    }
-    
-    // Reset state
-    setSpeaking(false);
-    setPaused(false);
-    setCurrentWordPosition(null);
-    
-    // Notify user
-    toast({
-      title: "Speech Synthesis Error",
-      description: "There was a problem with the text-to-speech feature. Please try again.",
-      variant: "destructive",
-    });
-  }, []);
+  }, [rate, pitch, volume, voice, supported, cleanTextForSpeech, handleSpeechError]);
   
   // Split text into chunks intelligently (at sentence or phrase boundaries where possible)
   const splitTextIntoChunks = useCallback((text: string): string[] => {

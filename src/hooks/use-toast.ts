@@ -1,11 +1,11 @@
 
 import * as React from "react";
-import type { Toast } from "@/components/ui/toast";
+import type { ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000;
 
-type ToasterToast = Toast & {
+type ToasterToastProps = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
@@ -32,11 +32,11 @@ type ActionType = typeof actionTypes;
 type Action =
   | {
       type: ActionType["ADD_TOAST"];
-      toast: ToasterToast;
+      toast: ToasterToastProps;
     }
   | {
       type: ActionType["UPDATE_TOAST"];
-      toast: Partial<ToasterToast>;
+      toast: Partial<ToasterToastProps>;
     }
   | {
       type: ActionType["DISMISS_TOAST"];
@@ -48,7 +48,7 @@ type Action =
     };
 
 interface State {
-  toasts: ToasterToast[];
+  toasts: ToasterToastProps[];
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -123,12 +123,12 @@ function dispatch(action: Action) {
   });
 }
 
-type Toast = Omit<ToasterToast, "id">;
+type ToastProps = Omit<ToasterToastProps, "id">;
 
-function toast({ ...props }: Toast) {
+function toast({ ...props }: ToastProps) {
   const id = genId();
 
-  const update = (props: ToasterToast) =>
+  const update = (props: ToasterToastProps) =>
     dispatch({
       type: actionTypes.UPDATE_TOAST,
       toast: { ...props, id },
