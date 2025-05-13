@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import DOMPurify from "dompurify";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface ImmersiveReaderProps {
   title: string;
@@ -51,17 +50,21 @@ export function ImmersiveReader({
   // Get available voices for speech synthesis
   useEffect(() => {
     const getVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        setAvailableVoices(voices);
-        // Set default voice (prefer English)
-        const defaultVoice = voices.find(voice => 
-          voice.lang.startsWith('en-')
-        ) || voices[0];
-        
-        if (defaultVoice && !selectedVoiceURI) {
-          setSelectedVoiceURI(defaultVoice.voiceURI);
+      try {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          setAvailableVoices(voices);
+          // Set default voice (prefer English)
+          const defaultVoice = voices.find(voice => 
+            voice.lang.startsWith('en-')
+          ) || voices[0];
+          
+          if (defaultVoice && !selectedVoiceURI) {
+            setSelectedVoiceURI(defaultVoice.voiceURI);
+          }
         }
+      } catch (error) {
+        console.error("Error getting voices:", error);
       }
     };
 
@@ -79,37 +82,40 @@ export function ImmersiveReader({
   // Extract plain text from HTML content and process for word highlighting
   useEffect(() => {
     if (isOpen && content) {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = DOMPurify.sanitize(content);
-      
-      // Get the text content of the div (includes all text from all elements)
-      const extractedText = tempDiv.textContent || tempDiv.innerText || "";
-      
-      // Thoroughly clean up the text by removing problematic characters and normalizing whitespace
-      const cleanedText = extractedText
-        .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
-        .replace(/\n+/g, ' ')  // Replace newlines with spaces
-        .replace(/\t+/g, ' ')  // Replace tabs with spaces
-        .replace(/\r+/g, ' ')  // Replace carriage returns with spaces
-        .replace(/\f+/g, ' ')  // Replace form feeds with spaces
-        .replace(/\v+/g, ' ')  // Replace vertical tabs with spaces
-        .replace(/\u00A0/g, ' ')  // Replace non-breaking spaces with regular spaces
-        .replace(/\u2003/g, ' ')  // Replace em spaces with regular spaces
-        .trim();               // Remove leading/trailing whitespace
-      
-      // Combine title and content with proper spacing
-      const fullText = `${title}. ${cleanedText}`;
-      setPlainText(fullText);
-      fullTextRef.current = fullText;
-      
-      // Process content for word-by-word highlighting
-      processContentForHighlighting(content);
-      
-      // Debug log
-      console.log("Extracted text length:", cleanedText.length);
-      console.log("First 100 chars:", cleanedText.substring(0, 100));
-      console.log("Last 100 chars:", cleanedText.substring(cleanedText.length - 100));
-      console.log("Full text to be read:", fullText.substring(0, 200) + "...");
+      try {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = DOMPurify.sanitize(content);
+        
+        // Get the text content of the div (includes all text from all elements)
+        const extractedText = tempDiv.textContent || tempDiv.innerText || "";
+        
+        // Thoroughly clean up the text by removing problematic characters and normalizing whitespace
+        const cleanedText = extractedText
+          .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
+          .replace(/\n+/g, ' ')  // Replace newlines with spaces
+          .replace(/\t+/g, ' ')  // Replace tabs with spaces
+          .replace(/\r+/g, ' ')  // Replace carriage returns with spaces
+          .replace(/\f+/g, ' ')  // Replace form feeds with spaces
+          .replace(/\v+/g, ' ')  // Replace vertical tabs with spaces
+          .replace(/\u00A0/g, ' ')  // Replace non-breaking spaces with regular spaces
+          .replace(/\u2003/g, ' ')  // Replace em spaces with regular spaces
+          .trim();               // Remove leading/trailing whitespace
+        
+        // Combine title and content with proper spacing
+        const fullText = `${title}. ${cleanedText}`;
+        setPlainText(fullText);
+        fullTextRef.current = fullText;
+        
+        // Process content for word-by-word highlighting
+        processContentForHighlighting(content);
+        
+        // Debug log
+        console.log("Extracted text length:", cleanedText.length);
+        console.log("First 100 chars:", cleanedText.substring(0, 100));
+      } catch (error) {
+        console.error("Error extracting text:", error);
+        toast.error("Error processing text content");
+      }
     }
   }, [isOpen, content, title]);
 
@@ -170,6 +176,7 @@ export function ImmersiveReader({
     } catch (error) {
       console.error("Error processing content for highlighting:", error);
       setProcessedContent(htmlContent); // Fallback to original content
+      toast.error("Error processing text for immersive reading");
     }
   };
 
@@ -178,9 +185,13 @@ export function ImmersiveReader({
     if (contentRef.current && processedContent) {
       // Allow time for the DOM to update with the processed content
       setTimeout(() => {
-        const elements = Array.from(contentRef.current?.querySelectorAll('.reader-word') || []);
-        setWordElements(elements as HTMLElement[]);
-        console.log(`Collected ${elements.length} word elements for highlighting`);
+        try {
+          const elements = Array.from(contentRef.current?.querySelectorAll('.reader-word') || []);
+          setWordElements(elements as HTMLElement[]);
+          console.log(`Collected ${elements.length} word elements for highlighting`);
+        } catch (error) {
+          console.error("Error collecting word elements:", error);
+        }
       }, 100);
     }
   }, [processedContent]);
@@ -273,26 +284,24 @@ export function ImmersiveReader({
   }, [currentWordPosition, speaking]);
 
   const togglePlayback = () => {
-    if (speaking) {
-      paused ? resume() : pause();
-    } else {
-      // Ensure we're passing the full text to the speak function
-      if (fullTextRef.current) {
-        console.log("Starting speech with complete text, length:", fullTextRef.current.length);
-        // Pass the entire text string to the speak function
-        speak(fullTextRef.current);
-        toast({
-          title: "Reading started",
-          description: "The content is now being read aloud",
-        });
+    try {
+      if (speaking) {
+        paused ? resume() : pause();
       } else {
-        console.error("No text available to speak");
-        toast({
-          title: "Error",
-          description: "No text available to read",
-          variant: "destructive",
-        });
+        // Ensure we're passing the full text to the speak function
+        if (fullTextRef.current) {
+          console.log("Starting speech with complete text, length:", fullTextRef.current.length);
+          // Pass the entire text string to the speak function
+          speak(fullTextRef.current);
+          toast.success("Reading started");
+        } else {
+          console.error("No text available to speak");
+          toast.error("No text available to read");
+        }
       }
+    } catch (error) {
+      console.error("Error toggling playback:", error);
+      toast.error("Error controlling playback");
     }
   };
 
@@ -317,21 +326,29 @@ export function ImmersiveReader({
   };
 
   const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    setVolume(newVolume);
-    if (speaking) {
-      // Update volume on the fly
-      stop();
-      speak(fullTextRef.current); // Restart with new volume
+    try {
+      const newVolume = value[0];
+      setVolume(newVolume);
+      if (speaking) {
+        // Update volume on the fly
+        stop();
+        speak(fullTextRef.current); // Restart with new volume
+      }
+    } catch (error) {
+      console.error("Error changing volume:", error);
     }
   };
 
   const handleVoiceChange = (voiceURI: string) => {
-    setSelectedVoiceURI(voiceURI);
-    if (speaking) {
-      // Update voice on the fly
-      stop();
-      speak(fullTextRef.current); // Restart with new voice
+    try {
+      setSelectedVoiceURI(voiceURI);
+      if (speaking) {
+        // Update voice on the fly
+        stop();
+        speak(fullTextRef.current); // Restart with new voice
+      }
+    } catch (error) {
+      console.error("Error changing voice:", error);
     }
   };
 
