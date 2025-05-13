@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { cleanTextForSpeech } from "@/lib/utils";
+import { cleanTextForSpeech, normalizeWord } from "@/lib/utils";
 
 interface UseSpeechSynthesisProps {
   text?: string;
@@ -42,7 +43,7 @@ export function useSpeechSynthesis({
   const textContentRef = useRef<string>("");
   const chunksRef = useRef<string[]>([]);
   const currentChunkIndexRef = useRef<number>(0);
-  const wordBoundariesRef = useRef<{text: string, boundaries: {word: string, start: number, end: number, charIndex: number}[]}>(
+  const wordBoundariesRef = useRef<{text: string, boundaries: {word: string, normalizedWord: string, start: number, end: number, charIndex: number}[]}>(
     {text: "", boundaries: []}
   );
   
@@ -92,7 +93,7 @@ export function useSpeechSynthesis({
       // Split text with regex that preserves punctuation and spacing
       const wordRegex = /\S+|\s+/g;
       const matches = [...cleanedText.matchAll(wordRegex)];
-      const boundaries: {word: string, start: number, end: number, charIndex: number}[] = [];
+      const boundaries: {word: string, normalizedWord: string, start: number, end: number, charIndex: number}[] = [];
       
       matches.forEach(match => {
         const word = match[0];
@@ -103,6 +104,7 @@ export function useSpeechSynthesis({
         if (word.trim()) {
           boundaries.push({
             word: word,
+            normalizedWord: normalizeWord(word),
             start,
             end,
             charIndex: start
@@ -231,7 +233,7 @@ export function useSpeechSynthesis({
                 charIndex // Include the actual charIndex for debugging
               });
               
-              console.log(`Highlighting word: "${closestBoundary.word}" at ${closestBoundary.start}-${closestBoundary.end}, charIndex: ${charIndex}`);
+              console.log(`Word boundary triggered: "${closestBoundary.word}" (normalized: "${closestBoundary.normalizedWord}") at ${closestBoundary.start}-${closestBoundary.end}, charIndex: ${charIndex}`);
             } else {
               console.warn(`No matching word found for character index ${charIndex}`);
             }

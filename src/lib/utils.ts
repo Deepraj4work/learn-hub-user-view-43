@@ -22,3 +22,39 @@ export function cleanTextForSpeech(text: string): string {
     .replace(/ +\./g, '.')        // Normalize spaces before periods
     .trim();                      // Remove leading/trailing whitespace
 }
+
+/**
+ * Normalizes a word for comparison by removing punctuation, 
+ * converting to lowercase, and trimming
+ */
+export function normalizeWord(word: string): string {
+  return word
+    .toLowerCase()
+    .replace(/[^\w\s']|_/g, '')  // Remove punctuation except apostrophes
+    .replace(/\s+/g, ' ')        // Replace multiple spaces with a single space
+    .trim();                     // Remove leading/trailing whitespace
+}
+
+/**
+ * Creates a debounced function that delays invoking the provided function
+ * until after the specified wait time has elapsed since the last invocation
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: number | null = null;
+  
+  return function(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+    
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    
+    timeout = window.setTimeout(later, wait);
+  };
+}

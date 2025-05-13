@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,7 +14,7 @@ import {
   VolumeX,
   RefreshCcw
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, normalizeWord, debounce } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import DOMPurify from "dompurify";
 import { toast } from "sonner";
@@ -42,13 +42,14 @@ export function ImmersiveReader({
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [textContent, setTextContent] = useState("");
   
-  // Track all word elements by index
+  // Track all word elements and their positions
   const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
-  const [allWordIndexes, setAllWordIndexes] = useState<{ word: string; index: number }[]>([]);
+  const [allWordIndexes, setAllWordIndexes] = useState<{ word: string; normalizedWord: string; index: number; element: HTMLElement | null }[]>([]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
-  const currentWordIndexRef = useRef<number>(-1);
+  const lastHighlightedIndexRef = useRef<number>(-1);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
   const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
@@ -110,7 +111,7 @@ export function ImmersiveReader({
         
         console.log("Text prepared for speech, length:", fullText.length);
         
-        // Create processed content for display with word spans
+        // Process content for highlighting with improved normalization
         processContentForHighlighting(content);
       } catch (error) {
         console.error("Error extracting text:", error);
@@ -128,7 +129,7 @@ export function ImmersiveReader({
       
       // Word index counter for data-index attributes
       let wordIndex = 0;
-      const allWords: { word: string; index: number }[] = [];
+      const allWords: { word: string; normalizedWord: string; index: number; element: HTMLElement | null }[] = [];
       
       // Process all text nodes
       const walkNode = (node: Node) => {
@@ -151,14 +152,22 @@ export function ImmersiveReader({
               const span = document.createElement('span');
               span.className = 'reader-word';
               span.dataset.index = wordIndex.toString();
-              span.dataset.word = word.trim().toLowerCase();
+              
+              // Store both original and normalized version of the word
+              const originalWord = word;
+              const normalized = normalizeWord(word);
+              
+              span.dataset.word = originalWord;
+              span.dataset.normalizedWord = normalized;
               span.textContent = word;
               fragment.appendChild(span);
               
               // Track this word for later lookup
               allWords.push({ 
-                word: word.trim().toLowerCase(), 
-                index: wordIndex 
+                word: originalWord, 
+                normalizedWord: normalized,
+                index: wordIndex,
+                element: null // Will be populated after rendering
               });
               
               wordIndex++;
@@ -220,6 +229,9 @@ export function ImmersiveReader({
   useEffect(() => {
     return () => {
       stop();
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, [stop]);
 
@@ -235,8 +247,24 @@ export function ImmersiveReader({
           word.classList.remove('highlight-word');
         });
       }
+      
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     }
   }, [isOpen, stop]);
+
+  // Create a debounced scroll function
+  const debouncedScrollIntoView = useCallback(
+    debounce((element: HTMLElement) => {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest'
+      });
+    }, 150), // 150ms debounce time
+    []
+  );
 
   // Index all word elements after the content is rendered
   useEffect(() => {
@@ -250,13 +278,24 @@ export function ImmersiveReader({
           
           // Store all word elements in order
           setWordElements(spans);
+          
+          // Update our word index mapping with references to actual DOM elements
+          const updatedIndexes = [...allWordIndexes];
+          spans.forEach((span) => {
+            const index = parseInt(span.dataset.index || "-1", 10);
+            if (index >= 0 && index < updatedIndexes.length) {
+              updatedIndexes[index].element = span;
+            }
+          });
+          
+          setAllWordIndexes(updatedIndexes);
           console.log(`Indexed ${spans.length} word elements`);
         }
       }, 100);
     }
   }, [processedContent]);
 
-  // Highlight the current word being spoken and scroll to it
+  // Improved highlight function with better word matching and handling of repeated words
   useEffect(() => {
     if (!speaking || !currentWordPosition || !contentRef.current) {
       // Clear all highlights when not speaking
@@ -264,6 +303,7 @@ export function ImmersiveReader({
       allWords?.forEach(word => {
         word.classList.remove('highlight-word');
       });
+      lastHighlightedIndexRef.current = -1;
       return;
     }
     
@@ -274,76 +314,69 @@ export function ImmersiveReader({
         word.classList.remove('highlight-word');
       });
       
-      // Find the word that best matches the current spoken word
+      // Normalize the spoken word to match our data-normalized-word attributes
       const { word: spokenWord } = currentWordPosition;
-      const normalizedWord = spokenWord.toLowerCase().trim();
+      const normalizedSpokenWord = normalizeWord(spokenWord);
       
-      // Find the closest match in our index
-      const matchingWordIndexes = allWordIndexes.filter(
-        item => item.word === normalizedWord
+      if (!normalizedSpokenWord) {
+        console.log("Empty normalized word, skipping highlight");
+        return;
+      }
+      
+      console.log(`Finding match for normalized spoken word: "${normalizedSpokenWord}"`);
+      
+      // Find all matching normalized words
+      const matchingWords = allWordIndexes.filter(item => 
+        item.normalizedWord === normalizedSpokenWord && item.element
       );
       
-      // If we found matching words
-      if (matchingWordIndexes.length > 0) {
-        // Find the element with the next index after our last highlighted word
-        const lastIndex = currentWordIndexRef.current;
-        let bestMatch: HTMLElement | null = null;
-        let bestMatchIndex = -1;
+      if (matchingWords.length > 0) {
+        let nextWordToHighlight = null;
+        const lastHighlightedIndex = lastHighlightedIndexRef.current;
         
-        // Try to find the next occurrence of this word after our last position
-        for (const match of matchingWordIndexes) {
-          if (match.index > lastIndex) {
-            bestMatchIndex = match.index;
+        // Strategy: find the next occurrence after our last highlight position
+        for (const match of matchingWords) {
+          if (match.index > lastHighlightedIndex) {
+            nextWordToHighlight = match;
             break;
           }
         }
         
-        // If we didn't find a word after the current position, use the first occurrence
-        if (bestMatchIndex === -1 && matchingWordIndexes.length > 0) {
-          bestMatchIndex = matchingWordIndexes[0].index;
+        // If no next occurrence is found (we're at the end), wrap around to the first match
+        if (!nextWordToHighlight && matchingWords.length > 0) {
+          nextWordToHighlight = matchingWords[0];
         }
         
-        // Find the actual DOM element with this index
-        if (bestMatchIndex !== -1) {
-          const wordElement = contentRef.current.querySelector(
-            `.reader-word[data-index="${bestMatchIndex}"]`
-          ) as HTMLElement;
+        // Apply highlighting and scroll to the element
+        if (nextWordToHighlight && nextWordToHighlight.element) {
+          const elementToHighlight = nextWordToHighlight.element;
           
-          if (wordElement) {
-            bestMatch = wordElement;
-            // Update our current position
-            currentWordIndexRef.current = bestMatchIndex;
-          }
-        }
-        
-        if (bestMatch) {
-          // Apply highlighting
-          bestMatch.classList.add('highlight-word');
+          // Update highlight
+          elementToHighlight.classList.add('highlight-word');
+          lastHighlightedIndexRef.current = nextWordToHighlight.index;
           
-          // Scroll to the element smoothly
-          bestMatch.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'nearest'
-          });
+          // Use debounced scroll for smoother experience
+          debouncedScrollIntoView(elementToHighlight);
           
-          console.log(`Highlighted word: "${normalizedWord}" at index ${bestMatchIndex}`);
+          console.log(`Highlighted word: "${nextWordToHighlight.word}" at index ${nextWordToHighlight.index}`);
+        } else {
+          console.warn(`No matching element found or element is null for word "${normalizedSpokenWord}"`);
         }
       } else {
-        console.warn(`No matching element found for word "${normalizedWord}"`);
+        console.warn(`No matching words found for "${normalizedSpokenWord}" in our index of ${allWordIndexes.length} words`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, speaking, allWordIndexes]);
+  }, [currentWordPosition, speaking, allWordIndexes, debouncedScrollIntoView]);
 
   const togglePlayback = () => {
     try {
       if (speaking) {
         paused ? resume() : pause();
       } else {
-        // Reset the current word index when starting a new reading
-        currentWordIndexRef.current = -1;
+        // Reset the highlight tracking when starting a new reading
+        lastHighlightedIndexRef.current = -1;
         speak(textContent);
         toast.success("Reading started");
       }
@@ -360,7 +393,7 @@ export function ImmersiveReader({
       stop();
       
       // Clear current position
-      currentWordIndexRef.current = -1;
+      lastHighlightedIndexRef.current = -1;
       
       // Reset all highlighting
       if (contentRef.current) {
