@@ -41,10 +41,14 @@ export function ImmersiveReader({
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [textContent, setTextContent] = useState("");
-  const [wordElements, setWordElements] = useState<{[word: string]: HTMLElement[]}>({});
+  
+  // Track all word elements by index
+  const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
+  const [allWordIndexes, setAllWordIndexes] = useState<{ word: string; index: number }[]>([]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
+  const currentWordIndexRef = useRef<number>(-1);
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
   const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
@@ -124,6 +128,7 @@ export function ImmersiveReader({
       
       // Word index counter for data-index attributes
       let wordIndex = 0;
+      const allWords: { word: string; index: number }[] = [];
       
       // Process all text nodes
       const walkNode = (node: Node) => {
@@ -132,13 +137,12 @@ export function ImmersiveReader({
           // Create a document fragment to replace this text node
           const fragment = document.createDocumentFragment();
           
-          // Get the text and split it preserving punctuation and spacing
+          // Get the text and split it preserving punctuation
           const text = node.textContent;
-          // Match actual words (including punctuation) and spaces separately
+          // Match words (including punctuation) and spaces separately
           const wordRegex = /(\S+|\s+)/g;
           let match;
           
-          let lastIndex = 0;
           while ((match = wordRegex.exec(text)) !== null) {
             const word = match[0];
             
@@ -147,9 +151,16 @@ export function ImmersiveReader({
               const span = document.createElement('span');
               span.className = 'reader-word';
               span.dataset.index = wordIndex.toString();
-              span.dataset.word = word;
+              span.dataset.word = word.trim().toLowerCase();
               span.textContent = word;
               fragment.appendChild(span);
+              
+              // Track this word for later lookup
+              allWords.push({ 
+                word: word.trim().toLowerCase(), 
+                index: wordIndex 
+              });
+              
               wordIndex++;
             } else {
               // It's whitespace - keep as is
@@ -172,6 +183,9 @@ export function ImmersiveReader({
       
       // Process all nodes in the body
       Array.from(doc.body.childNodes).forEach(walkNode);
+      
+      // Store the word index mapping
+      setAllWordIndexes(allWords);
       
       // Set the processed HTML content
       setProcessedContent(doc.body.innerHTML);
@@ -213,28 +227,30 @@ export function ImmersiveReader({
   useEffect(() => {
     if (!isOpen) {
       stop();
+      
+      // Clear all highlights when dialog closes
+      if (contentRef.current) {
+        const allWords = contentRef.current.querySelectorAll('.reader-word');
+        allWords.forEach(word => {
+          word.classList.remove('highlight-word');
+        });
+      }
     }
   }, [isOpen, stop]);
 
-  // Index all words by their content after the content is rendered
+  // Index all word elements after the content is rendered
   useEffect(() => {
     if (contentRef.current && processedContent) {
       // Give time for the DOM to update
       setTimeout(() => {
         if (contentRef.current) {
-          const spans = Array.from(contentRef.current.querySelectorAll('.reader-word'));
-          const wordMap: {[word: string]: HTMLElement[]} = {};
+          const spans = Array.from(
+            contentRef.current.querySelectorAll('.reader-word')
+          ) as HTMLElement[];
           
-          spans.forEach(span => {
-            const wordText = span.textContent?.trim().toLowerCase() || "";
-            if (!wordMap[wordText]) {
-              wordMap[wordText] = [];
-            }
-            wordMap[wordText].push(span as HTMLElement);
-          });
-          
-          setWordElements(wordMap);
-          console.log(`Indexed ${spans.length} words for highlighting`);
+          // Store all word elements in order
+          setWordElements(spans);
+          console.log(`Indexed ${spans.length} word elements`);
         }
       }, 100);
     }
@@ -258,50 +274,76 @@ export function ImmersiveReader({
         word.classList.remove('highlight-word');
       });
       
-      // Find all words with the same content (since words might repeat in the text)
-      const { word: wordText } = currentWordPosition;
-      const normalizedWord = wordText.toLowerCase().trim();
+      // Find the word that best matches the current spoken word
+      const { word: spokenWord } = currentWordPosition;
+      const normalizedWord = spokenWord.toLowerCase().trim();
       
-      // First try to find words by looking at their text content
-      const spans = Array.from(contentRef.current.querySelectorAll(`.reader-word`));
+      // Find the closest match in our index
+      const matchingWordIndexes = allWordIndexes.filter(
+        item => item.word === normalizedWord
+      );
       
-      // Find the best match (exact match or closest position)
-      let bestMatch: HTMLElement | null = null;
-      
-      for (const span of spans) {
-        const spanText = span.textContent?.toLowerCase().trim() || "";
-        if (spanText === normalizedWord) {
-          // Found an exact match
-          bestMatch = span as HTMLElement;
-          break;
+      // If we found matching words
+      if (matchingWordIndexes.length > 0) {
+        // Find the element with the next index after our last highlighted word
+        const lastIndex = currentWordIndexRef.current;
+        let bestMatch: HTMLElement | null = null;
+        let bestMatchIndex = -1;
+        
+        // Try to find the next occurrence of this word after our last position
+        for (const match of matchingWordIndexes) {
+          if (match.index > lastIndex) {
+            bestMatchIndex = match.index;
+            break;
+          }
         }
-      }
-      
-      if (bestMatch) {
-        // Apply highlighting
-        bestMatch.classList.add('highlight-word');
         
-        // Scroll to the element smoothly
-        bestMatch.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'nearest'
-        });
+        // If we didn't find a word after the current position, use the first occurrence
+        if (bestMatchIndex === -1 && matchingWordIndexes.length > 0) {
+          bestMatchIndex = matchingWordIndexes[0].index;
+        }
         
-        console.log(`Highlighted word: "${normalizedWord}"`);
+        // Find the actual DOM element with this index
+        if (bestMatchIndex !== -1) {
+          const wordElement = contentRef.current.querySelector(
+            `.reader-word[data-index="${bestMatchIndex}"]`
+          ) as HTMLElement;
+          
+          if (wordElement) {
+            bestMatch = wordElement;
+            // Update our current position
+            currentWordIndexRef.current = bestMatchIndex;
+          }
+        }
+        
+        if (bestMatch) {
+          // Apply highlighting
+          bestMatch.classList.add('highlight-word');
+          
+          // Scroll to the element smoothly
+          bestMatch.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+          
+          console.log(`Highlighted word: "${normalizedWord}" at index ${bestMatchIndex}`);
+        }
       } else {
         console.warn(`No matching element found for word "${normalizedWord}"`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, speaking]);
+  }, [currentWordPosition, speaking, allWordIndexes]);
 
   const togglePlayback = () => {
     try {
       if (speaking) {
         paused ? resume() : pause();
       } else {
+        // Reset the current word index when starting a new reading
+        currentWordIndexRef.current = -1;
         speak(textContent);
         toast.success("Reading started");
       }
@@ -504,4 +546,3 @@ export function ImmersiveReader({
     </Dialog>
   );
 }
-
