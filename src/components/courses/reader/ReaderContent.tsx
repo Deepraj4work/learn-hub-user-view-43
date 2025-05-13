@@ -30,6 +30,7 @@ export function ReaderContent({
   speaking
 }: ReaderContentProps) {
   const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Extract plain text from HTML content and process for word highlighting
   useEffect(() => {
@@ -173,11 +174,33 @@ export function ReaderContent({
         // Highlight the current word with scaling
         elementToHighlight.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5', 'scale-125');
         
-        // Scroll to the highlighted element
-        elementToHighlight.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
+        // Ensure the ScrollArea component is accessible through refs
+        if (scrollAreaRef.current) {
+          // Find the scroll container - the actual scrollable element
+          const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+          
+          if (scrollContainer) {
+            // Calculate the element position relative to the scroll container
+            const elementRect = elementToHighlight.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+            
+            // Calculate how far to scroll to center the element
+            const relativeTop = elementRect.top - containerRect.top;
+            const scrollTarget = relativeTop + scrollContainer.scrollTop - (containerRect.height / 2) + (elementRect.height / 2);
+            
+            // Perform the smooth scroll
+            scrollContainer.scrollTo({
+              top: scrollTarget,
+              behavior: 'smooth'
+            });
+          } else {
+            // Fallback to using scrollIntoView if we can't find the container
+            elementToHighlight.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+          }
+        }
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
@@ -185,7 +208,7 @@ export function ReaderContent({
   }, [currentWordPosition, speaking, fullTextRef]);
 
   return (
-    <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30">
+    <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30" ref={scrollAreaRef}>
       <div className="max-w-2xl mx-auto space-y-8">
         <h1 className="text-3xl font-bold">{title}</h1>
         <div 
