@@ -6,6 +6,7 @@ interface UseSpeechSynthesisProps {
   rate?: number;
   pitch?: number;
   volume?: number;
+  voice?: SpeechSynthesisVoice | null;
 }
 
 interface UseSpeechSynthesisReturn {
@@ -24,6 +25,7 @@ export function useSpeechSynthesis({
   rate = 1,
   pitch = 1,
   volume = 1,
+  voice = null,
 }: UseSpeechSynthesisProps): UseSpeechSynthesisReturn {
   const [speaking, setSpeaking] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -75,6 +77,11 @@ export function useSpeechSynthesis({
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
+    
+    // Set voice if provided
+    if (voice) {
+      utterance.voice = voice;
+    }
     
     utterance.onstart = () => {
       setSpeaking(true);
@@ -144,7 +151,7 @@ export function useSpeechSynthesis({
     };
     
     return utterance;
-  }, [rate, pitch, volume, supported, cleanTextForSpeech]);
+  }, [rate, pitch, volume, voice, supported, cleanTextForSpeech]);
   
   // Split text into chunks intelligently (at sentence or phrase boundaries where possible)
   const splitTextIntoChunks = useCallback((text: string): string[] => {

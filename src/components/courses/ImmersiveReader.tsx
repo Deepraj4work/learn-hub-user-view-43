@@ -3,16 +3,21 @@ import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft,
   Pause,
   Play,
   Settings,
   LayoutGrid,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import DOMPurify from "dompurify";
+import { toast } from "@/components/ui/use-toast";
 
 interface ImmersiveReaderProps {
   title: string;
@@ -30,12 +35,45 @@ export function ImmersiveReader({
   const [fontSize, setFontSize] = useState("text-xl");
   const [lineHeight, setLineHeight] = useState("leading-relaxed");
   const [plainText, setPlainText] = useState("");
-  const [highlightedContent, setHighlightedContent] = useState("");
+  const [processedContent, setProcessedContent] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
   const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
+
+  // Get available voices for speech synthesis
+  useEffect(() => {
+    const getVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+        // Set default voice (prefer English)
+        const defaultVoice = voices.find(voice => 
+          voice.lang.startsWith('en-')
+        ) || voices[0];
+        
+        if (defaultVoice && !selectedVoiceURI) {
+          setSelectedVoiceURI(defaultVoice.voiceURI);
+        }
+      }
+    };
+
+    // Get voices immediately in case they're already loaded
+    getVoices();
+    
+    // Add event listener for when voices change
+    window.speechSynthesis.onvoiceschanged = getVoices;
+    
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [selectedVoiceURI]);
 
   // Extract plain text from HTML content
   useEffect(() => {
@@ -63,7 +101,8 @@ export function ImmersiveReader({
       setPlainText(fullText);
       fullTextRef.current = fullText;
       
-      setHighlightedContent(DOMPurify.sanitize(content));
+      // Process content for word-by-word highlighting
+      processContentForHighlighting(content);
       
       // Debug log
       console.log("Extracted text length:", cleanedText.length);
@@ -73,6 +112,61 @@ export function ImmersiveReader({
     }
   }, [isOpen, content, title]);
 
+  // Process HTML content to wrap words in spans for highlighting
+  const processContentForHighlighting = (htmlContent: string) => {
+    try {
+      // Create a DOM parser to manipulate HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(DOMPurify.sanitize(htmlContent), 'text/html');
+      
+      // Process all text nodes to wrap words in spans
+      const processTextNodes = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+          // Split text by spaces and create spans for each word
+          const fragment = document.createDocumentFragment();
+          const words = node.textContent.split(/(\s+)/);
+          
+          words.forEach((word, index) => {
+            if (word.trim()) {
+              // Create span for word
+              const span = document.createElement('span');
+              span.textContent = word;
+              span.className = 'reader-word';
+              fragment.appendChild(span);
+            } else if (word) {
+              // Preserve whitespace
+              fragment.appendChild(document.createTextNode(word));
+            }
+          });
+          
+          // Replace text node with fragment containing spans
+          node.parentNode?.replaceChild(fragment, node);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          // Skip pre and code elements (preserve formatting)
+          if (
+            (node as Element).tagName !== 'PRE' && 
+            (node as Element).tagName !== 'CODE'
+          ) {
+            Array.from(node.childNodes).forEach(processTextNodes);
+          }
+        }
+      };
+      
+      // Process the document body
+      Array.from(doc.body.childNodes).forEach(processTextNodes);
+      
+      // Get the processed HTML
+      const processedHTML = doc.body.innerHTML;
+      setProcessedContent(processedHTML);
+    } catch (error) {
+      console.error("Error processing content for highlighting:", error);
+      setProcessedContent(htmlContent); // Fallback to original content
+    }
+  };
+
+  // Configure speech synthesis
+  const selectedVoice = availableVoices.find(voice => voice.voiceURI === selectedVoiceURI);
+  
   const {
     speak,
     stop,
@@ -85,7 +179,8 @@ export function ImmersiveReader({
   } = useSpeechSynthesis({
     rate: 1,
     pitch: 1,
-    volume: 1,
+    volume,
+    voice: selectedVoice,
   });
 
   // Clean up on unmount
@@ -113,27 +208,35 @@ export function ImmersiveReader({
       
       if (!word) return;
       
-      // Find and highlight this word in the content
-      // This is an approximation since the plain text position doesn't directly map to HTML
-      const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const wordRegex = new RegExp(`(\\b${escapedWord}\\b)`, 'gi');
+      // Find all word spans in the document
+      const wordElements = contentRef.current?.querySelectorAll('.reader-word');
       
-      const highlighted = DOMPurify.sanitize(content)
-        .replace(wordRegex, 
-                '<span class="bg-primary/30 text-primary font-bold rounded px-0.5">$1</span>');
+      // Remove previous highlights
+      wordElements?.forEach(el => {
+        el.classList.remove('bg-primary/30', 'text-primary', 'font-bold');
+      });
       
-      setHighlightedContent(highlighted);
+      // Try to find the current word in spans
+      let foundElement: Element | null = null;
       
-      // Scroll to the highlighted word
-      const activeElements = contentRef.current?.querySelectorAll('.bg-primary/30');
-      if (activeElements && activeElements.length > 0) {
-        const activeElement = activeElements[0];
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      wordElements?.forEach(el => {
+        if (el.textContent?.includes(word)) {
+          el.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+          foundElement = el;
+        }
+      });
+      
+      // Scroll to the highlighted element
+      if (foundElement) {
+        foundElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, speaking, content]);
+  }, [currentWordPosition, speaking]);
 
   const togglePlayback = () => {
     if (speaking) {
@@ -144,8 +247,17 @@ export function ImmersiveReader({
         console.log("Starting speech with complete text, length:", fullTextRef.current.length);
         // Pass the entire text string to the speak function
         speak(fullTextRef.current);
+        toast({
+          title: "Reading started",
+          description: "The content is now being read aloud",
+        });
       } else {
         console.error("No text available to speak");
+        toast({
+          title: "Error",
+          description: "No text available to read",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -168,6 +280,25 @@ export function ImmersiveReader({
     const index = lineHeights.indexOf(lineHeight);
     const nextIndex = (index + 1) % lineHeights.length;
     setLineHeight(lineHeights[nextIndex]);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+    if (speaking) {
+      // Update volume on the fly
+      stop();
+      speak(fullTextRef.current); // Restart with new volume
+    }
+  };
+
+  const handleVoiceChange = (voiceURI: string) => {
+    setSelectedVoiceURI(voiceURI);
+    if (speaking) {
+      // Update voice on the fly
+      stop();
+      speak(fullTextRef.current); // Restart with new voice
+    }
   };
 
   return (
@@ -194,7 +325,13 @@ export function ImmersiveReader({
             <Button variant="ghost" size="icon" onClick={toggleLineHeight} aria-label="Toggle line spacing">
               <span className="text-sm">↕</span>
             </Button>
-            <Button variant="ghost" size="icon" aria-label="Settings">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowSettings(!showSettings)}
+              aria-label="Settings"
+              className={cn(showSettings && "bg-muted")}
+            >
               <Settings size={18} />
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose} aria-label="Exit Reader">
@@ -203,6 +340,56 @@ export function ImmersiveReader({
           </div>
         </div>
 
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="border-b p-4 bg-muted/30 space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="volume-slider" className="text-sm font-medium">
+                  Volume
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round(volume * 100)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <VolumeX size={16} className="text-muted-foreground" />
+                <Slider
+                  id="volume-slider"
+                  defaultValue={[volume]}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  onValueChange={handleVolumeChange}
+                  className="flex-1"
+                />
+                <Volume2 size={16} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="voice-select" className="text-sm font-medium">
+                Voice
+              </label>
+              <Select 
+                value={selectedVoiceURI}
+                onValueChange={handleVoiceChange}
+              >
+                <SelectTrigger id="voice-select" className="w-full">
+                  <SelectValue placeholder="Select a voice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVoices.map((voice) => (
+                    <SelectItem key={voice.voiceURI} value={voice.voiceURI}>
+                      {voice.name} ({voice.lang})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30">
           <div className="max-w-2xl mx-auto space-y-8">
@@ -210,7 +397,7 @@ export function ImmersiveReader({
             <div 
               className={cn("prose max-w-none", fontSize, lineHeight)}
               ref={contentRef}
-              dangerouslySetInnerHTML={{ __html: highlightedContent }}
+              dangerouslySetInnerHTML={{ __html: processedContent }}
             />
           </div>
         </ScrollArea>
