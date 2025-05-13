@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, Volume2, Pause, Play, Settings, BookText, LayoutGrid, MinusCircle, PlusCircle } from "lucide-react";
+import { ArrowLeft, Volume2, Pause, Play, Settings, BookText, LayoutGrid, MinusCircle, PlusCircle, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
+import { Slider } from "@/components/ui/slider";
 
 interface ImmersiveReaderProps {
   title: string;
@@ -17,8 +18,11 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
   const [fontSize, setFontSize] = useState("text-xl");
   const [lineHeight, setLineHeight] = useState("leading-relaxed");
   const [plainText, setPlainText] = useState("");
-  const [htmlContent, setHtmlContent] = useState("");
-  const [highlightedContent, setHighlightedContent] = useState<string>(content);
+  const [processedContent, setProcessedContent] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [rate, setRate] = useState(1);
+  const [pitch, setPitch] = useState(1);
+  const [volume, setVolume] = useState(1);
   
   // Ref for the content container to enable auto-scrolling
   const contentRef = useRef<HTMLDivElement>(null);
@@ -34,88 +38,96 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
       const textContent = tempDiv.textContent || tempDiv.innerText || "";
       setPlainText(textContent);
       
-      // Set initial HTML content
-      setHtmlContent(content);
-      setHighlightedContent(content);
+      // Set initial processed content
+      setProcessedContent(content);
     }
   }, [isOpen, content]);
   
   // Handle text highlighting when narrating
   const handleHighlight = (word: string, position: number) => {
-    if (!plainText) return;
-    
     try {
-      // This is a simplified approach; a more robust solution would use DOM manipulation
-      // for complex HTML, but this works for basic highlighting
-      const beforeWord = plainText.substring(0, position);
-      const afterWord = plainText.substring(position + word.length);
-      
-      // Create a temporary div to parse the content
+      // Create a temp div to work with the content
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
       
-      // Find all text nodes
+      // Get all text nodes
       const textNodes: Node[] = [];
-      const findTextNodes = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
+      const getAllTextNodes = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
           textNodes.push(node);
         } else {
           for (let i = 0; i < node.childNodes.length; i++) {
-            findTextNodes(node.childNodes[i]);
+            getAllTextNodes(node.childNodes[i]);
           }
         }
       };
+      getAllTextNodes(tempDiv);
       
-      findTextNodes(tempDiv);
+      // Find the node containing our current position
+      let charCount = 0;
+      let highlightNode: Node | null = null;
+      let highlightOffset = 0;
       
-      // Try to highlight the word in the appropriate text node
-      let totalLength = 0;
-      let processed = false;
-      
-      for (const textNode of textNodes) {
-        const nodeText = textNode.textContent || "";
-        if (position >= totalLength && position < totalLength + nodeText.length && !processed) {
-          const relativePos = position - totalLength;
-          const span = document.createElement("span");
-          span.className = "bg-primary/20 text-foreground font-bold px-0.5 rounded";
-          
-          const textBefore = nodeText.substring(0, relativePos);
-          const highlightedWord = nodeText.substring(relativePos, relativePos + word.length);
-          const textAfter = nodeText.substring(relativePos + word.length);
-          
-          const beforeNode = document.createTextNode(textBefore);
-          const wordNode = document.createTextNode(highlightedWord);
-          const afterNode = document.createTextNode(textAfter);
-          
-          span.appendChild(wordNode);
-          
-          const parentNode = textNode.parentNode;
-          if (parentNode) {
-            parentNode.replaceChild(afterNode, textNode);
-            parentNode.insertBefore(span, afterNode);
-            parentNode.insertBefore(beforeNode, span);
-            processed = true;
-          }
-          
+      for (const node of textNodes) {
+        const nodeText = node.textContent || "";
+        if (position >= charCount && position < charCount + nodeText.length) {
+          highlightNode = node;
+          highlightOffset = position - charCount;
           break;
         }
-        
-        totalLength += nodeText.length;
+        charCount += nodeText.length;
       }
       
-      setHighlightedContent(tempDiv.innerHTML);
+      if (highlightNode && highlightNode.parentNode) {
+        const nodeText = highlightNode.textContent || "";
+        const beforeWord = nodeText.substring(0, highlightOffset);
+        const currentWord = nodeText.substring(highlightOffset, highlightOffset + word.length);
+        const afterWord = nodeText.substring(highlightOffset + word.length);
+        
+        const beforeTextNode = document.createTextNode(beforeWord);
+        const afterTextNode = document.createTextNode(afterWord);
+        
+        // Create highlight span
+        const highlightSpan = document.createElement("span");
+        highlightSpan.className = "bg-reader-highlight animate-highlight-pulse text-foreground font-bold px-0.5 py-0.5 rounded text-2xl";
+        highlightSpan.textContent = currentWord;
+        
+        // Replace the original node with our three new nodes
+        const parentNode = highlightNode.parentNode;
+        parentNode.replaceChild(afterTextNode, highlightNode);
+        parentNode.insertBefore(highlightSpan, afterTextNode);
+        parentNode.insertBefore(beforeTextNode, highlightSpan);
+      }
       
+      // Update the content with highlighting
+      setProcessedContent(tempDiv.innerHTML);
     } catch (error) {
       console.error("Error highlighting text:", error);
     }
   };
   
   // Speech synthesis integration
-  const { speak, stop, pause, resume, speaking, paused, supported, currentWord, currentSentence } = useSpeechSynthesis({
+  const { 
+    speak, 
+    stop, 
+    pause, 
+    resume, 
+    speaking, 
+    paused, 
+    supported,
+    currentWord, 
+    currentSentence,
+    voices,
+    selectedVoice,
+    setSelectedVoice,
+    setRate: updateRate,
+    setPitch: updatePitch,
+    setVolume: updateVolume
+  } = useSpeechSynthesis({
     text: `${title}. ${plainText}`,
-    rate: 1,
-    pitch: 1,
-    volume: 1,
+    rate,
+    pitch,
+    volume,
     elementRef: contentRef,
     onHighlight: handleHighlight
   });
@@ -143,6 +155,24 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
     } else {
       speak();
     }
+  };
+
+  const handleRateChange = (value: number[]) => {
+    const newRate = value[0];
+    setRate(newRate);
+    updateRate(newRate);
+  };
+
+  const handlePitchChange = (value: number[]) => {
+    const newPitch = value[0];
+    setPitch(newPitch);
+    updatePitch(newPitch);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+    updateVolume(newVolume);
   };
 
   const increaseFontSize = () => {
@@ -186,7 +216,7 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
             <Button variant="ghost" size="sm" onClick={onClose}>
               <ArrowLeft size={18} />
             </Button>
-            <h2 className="text-lg font-semibold">Immersive Reader</h2>
+            <DialogTitle className="text-lg font-semibold">Immersive Reader</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={decreaseFontSize} title="Decrease font size">
@@ -201,20 +231,98 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
             <Button variant="ghost" size="icon" onClick={decreaseLineHeight} title="Decrease line spacing">
               <span className="text-xs">↕-</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <LayoutGrid size={18} />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowSettings(!showSettings)} 
+              className={showSettings ? "bg-primary/10" : ""}
+            >
+              <Settings size={18} />
             </Button>
           </div>
         </div>
         
+        {/* Settings panel */}
+        {showSettings && (
+          <div className="p-4 border-b bg-accent/5">
+            <DialogDescription className="mb-4">Customize your reading experience</DialogDescription>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Volume2 size={16} className="text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1">Volume: {Math.round(volume * 100)}%</p>
+                  <Slider 
+                    value={[volume]} 
+                    min={0} 
+                    max={1} 
+                    step={0.1} 
+                    onValueChange={handleVolumeChange} 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-medium text-muted-foreground">🐢</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1">Reading Speed: {rate.toFixed(1)}x</p>
+                  <Slider 
+                    value={[rate]} 
+                    min={0.5} 
+                    max={2} 
+                    step={0.1} 
+                    onValueChange={handleRateChange} 
+                  />
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">🐇</span>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-medium text-muted-foreground">↓</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1">Pitch: {pitch.toFixed(1)}</p>
+                  <Slider 
+                    value={[pitch]} 
+                    min={0.5} 
+                    max={2} 
+                    step={0.1} 
+                    onValueChange={handlePitchChange} 
+                  />
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">↑</span>
+              </div>
+              
+              {voices.length > 0 && (
+                <div className="mt-4">
+                  <label className="text-sm font-medium mb-1 block">Voice</label>
+                  <select 
+                    className="w-full p-2 rounded border bg-background"
+                    value={selectedVoice?.voiceURI}
+                    onChange={(e) => {
+                      const selected = voices.find(v => v.voiceURI === e.target.value);
+                      if (selected) setSelectedVoice(selected);
+                    }}
+                  >
+                    {voices.map(voice => (
+                      <option key={voice.voiceURI} value={voice.voiceURI}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-reader-background text-reader-text">
           <div className="max-w-2xl mx-auto space-y-8" ref={contentRef}>
-            <h1 className="text-3xl font-bold">{title}</h1>
+            <h1 className="text-3xl font-bold text-center mb-6">{title}</h1>
             
             <div className={cn("prose prose-slate dark:prose-invert max-w-none", fontSize, lineHeight)}>
               {/* This would be the parsed content with highlighting */}
-              <div dangerouslySetInnerHTML={{ __html: speaking ? highlightedContent : content }} />
+              <div dangerouslySetInnerHTML={{ __html: speaking ? processedContent : content }} />
             </div>
           </div>
         </div>
@@ -229,20 +337,45 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         )}
         
         {/* Audio controls */}
-        <div className="flex items-center justify-center p-4 border-t bg-white dark:bg-gray-900">
+        <div className="flex items-center justify-center gap-4 p-4 border-t bg-white dark:bg-gray-900">
           {supported ? (
-            <Button
-              variant="outline"
-              size="lg"
-              className="rounded-full w-14 h-14 flex items-center justify-center"
-              onClick={togglePlayback}
-            >
-              {speaking && !paused ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6 ml-1" />
-              )}
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn("rounded-full w-10 h-10", volume === 0 && "bg-red-50 border-red-200")}
+                onClick={() => {
+                  const newVolume = volume === 0 ? 1 : 0;
+                  setVolume(newVolume);
+                  updateVolume(newVolume);
+                }}
+              >
+                {volume === 0 ? <VolumeX className="h-5 w-5 text-red-500" /> : <Volume2 className="h-5 w-5" />}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="lg"
+                className="rounded-full w-14 h-14 flex items-center justify-center bg-primary/10 hover:bg-primary/20 border-primary/20"
+                onClick={togglePlayback}
+              >
+                {speaking && !paused ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6 ml-1" />
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full w-10 h-10"
+                onClick={() => stop()}
+                disabled={!speaking}
+              >
+                <span className="h-5 w-5 flex items-center justify-center">■</span>
+              </Button>
+            </>
           ) : (
             <div className="text-sm text-muted-foreground">
               Text-to-speech not supported in this browser
