@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -447,7 +448,8 @@ export function ImmersiveReader({
         )}
 
         {/* Content - with custom styling for word highlighting */}
-        <style jsx>{`
+        <style>
+          {`
           .highlight-word {
             background-color: rgba(var(--primary) / 0.3);
             color: hsl(var(--primary));
@@ -462,7 +464,8 @@ export function ImmersiveReader({
             transition: all 0.1s ease-in-out;
             display: inline-block;
           }
-        `}</style>
+          `}
+        </style>
 
         <ScrollArea className="flex-1 p-8 md:p-16 bg-muted/30">
           <div className="max-w-2xl mx-auto space-y-8">
@@ -501,3 +504,4 @@ export function ImmersiveReader({
     </Dialog>
   );
 }
+
