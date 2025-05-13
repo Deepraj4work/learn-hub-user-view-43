@@ -40,6 +40,7 @@ export function ImmersiveReader({
   const [volume, setVolume] = useState(1);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
@@ -75,7 +76,7 @@ export function ImmersiveReader({
     };
   }, [selectedVoiceURI]);
 
-  // Extract plain text from HTML content
+  // Extract plain text from HTML content and process for word highlighting
   useEffect(() => {
     if (isOpen && content) {
       const tempDiv = document.createElement("div");
@@ -112,14 +113,17 @@ export function ImmersiveReader({
     }
   }, [isOpen, content, title]);
 
-  // Process HTML content to wrap words in spans for highlighting
+  // Process HTML content to wrap words in spans with unique IDs for highlighting
   const processContentForHighlighting = (htmlContent: string) => {
     try {
       // Create a DOM parser to manipulate HTML
       const parser = new DOMParser();
       const doc = parser.parseFromString(DOMPurify.sanitize(htmlContent), 'text/html');
       
-      // Process all text nodes to wrap words in spans
+      // We'll use this to track the global word index across all text nodes
+      let globalWordIndex = 0;
+      
+      // Process all text nodes to wrap words in spans with unique IDs
       const processTextNodes = (node: Node) => {
         if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
           // Split text by spaces and create spans for each word
@@ -128,10 +132,12 @@ export function ImmersiveReader({
           
           words.forEach((word, index) => {
             if (word.trim()) {
-              // Create span for word
+              // Create span for word with unique ID
               const span = document.createElement('span');
               span.textContent = word;
               span.className = 'reader-word';
+              span.id = `reader-word-${globalWordIndex}`;
+              globalWordIndex++;
               fragment.appendChild(span);
             } else if (word) {
               // Preserve whitespace
@@ -158,11 +164,26 @@ export function ImmersiveReader({
       // Get the processed HTML
       const processedHTML = doc.body.innerHTML;
       setProcessedContent(processedHTML);
+      
+      // Track the total number of word elements created for easier reference
+      console.log(`Created ${globalWordIndex} word spans for highlighting`);
     } catch (error) {
       console.error("Error processing content for highlighting:", error);
       setProcessedContent(htmlContent); // Fallback to original content
     }
   };
+
+  // Collect all word elements after content is processed
+  useEffect(() => {
+    if (contentRef.current && processedContent) {
+      // Allow time for the DOM to update with the processed content
+      setTimeout(() => {
+        const elements = Array.from(contentRef.current?.querySelectorAll('.reader-word') || []);
+        setWordElements(elements as HTMLElement[]);
+        console.log(`Collected ${elements.length} word elements for highlighting`);
+      }, 100);
+    }
+  }, [processedContent]);
 
   // Configure speech synthesis
   const selectedVoice = availableVoices.find(voice => voice.voiceURI === selectedVoiceURI);
@@ -199,39 +220,52 @@ export function ImmersiveReader({
 
   // Track and highlight current word being spoken
   useEffect(() => {
-    if (!speaking || !currentWordPosition || !fullTextRef.current) return;
+    if (!speaking || !currentWordPosition) return;
     
     try {
-      // Get the word being spoken
+      // Get the word being spoken position
       const { start, end } = currentWordPosition;
-      const word = fullTextRef.current.substring(start, end).trim();
       
-      if (!word) return;
+      // Calculate which element should be highlighted based on position
+      let wordIndex = 0;
+      let currentPosition = 0;
+      const words = fullTextRef.current.split(/\s+/);
       
-      // Find all word spans in the document
-      const wordElements = contentRef.current?.querySelectorAll('.reader-word');
-      
-      // Remove previous highlights
-      wordElements?.forEach(el => {
-        el.classList.remove('bg-primary/30', 'text-primary', 'font-bold');
-      });
-      
-      // Try to find the current word in spans
-      let foundElement: Element | null = null;
-      
-      wordElements?.forEach(el => {
-        if (el.textContent?.includes(word)) {
-          el.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
-          foundElement = el;
+      // Find the index of the current word based on its position in the full text
+      for (let i = 0; i < words.length; i++) {
+        const wordLength = words[i].length;
+        
+        // Check if current position falls within this word's range
+        if (start >= currentPosition && start < currentPosition + wordLength + 1) {
+          wordIndex = i;
+          break;
         }
+        
+        // Move position counter forward (add 1 for the space)
+        currentPosition += wordLength + 1;
+      }
+      
+      // Remove previous highlights from all word elements
+      const allWordElements = contentRef.current?.querySelectorAll('.reader-word');
+      allWordElements?.forEach(el => {
+        el.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
       });
       
-      // Scroll to the highlighted element
-      if (foundElement) {
-        foundElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+      // Find the element with the corresponding ID and highlight it
+      const elementId = `reader-word-${wordIndex}`;
+      const elementToHighlight = document.getElementById(elementId);
+      
+      if (elementToHighlight) {
+        // Highlight the current word
+        elementToHighlight.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+        
+        // Scroll to the highlighted element
+        elementToHighlight.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         });
+        
+        console.log(`Highlighting word at index ${wordIndex}, element ID: ${elementId}`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
