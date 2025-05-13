@@ -32,6 +32,7 @@ export function ImmersiveReader({
   const [plainText, setPlainText] = useState("");
   const [highlightedContent, setHighlightedContent] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
+  const fullTextRef = useRef<string>("");
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
   const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
@@ -40,16 +41,22 @@ export function ImmersiveReader({
   useEffect(() => {
     if (isOpen && content) {
       const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = content;
+      tempDiv.innerHTML = DOMPurify.sanitize(content);
+      
+      // Get the text content of the div (includes all text from all elements)
       const extractedText = tempDiv.textContent || tempDiv.innerText || "";
       
-      // Start with the title for better context
-      setPlainText(title + ". " + extractedText);
+      // Combine title and content with proper spacing
+      const fullText = `${title}. ${extractedText}`;
+      setPlainText(fullText);
+      fullTextRef.current = fullText;
+      
       setHighlightedContent(DOMPurify.sanitize(content));
       
-      // Debug log to check content
+      // Debug log
       console.log("Extracted text length:", extractedText.length);
       console.log("First 100 chars:", extractedText.substring(0, 100));
+      console.log("Last 100 chars:", extractedText.substring(extractedText.length - 100));
     }
   }, [isOpen, content, title]);
 
@@ -82,26 +89,30 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
-  // Highlight current word being spoken and scroll to it
+  // Track and highlight current word being spoken
   useEffect(() => {
-    if (!speaking || !currentWordPosition || !plainText) return;
+    if (!speaking || !currentWordPosition || !fullTextRef.current) return;
     
     try {
       // Get the word being spoken
       const { start, end } = currentWordPosition;
-      const word = plainText.substring(start, end).trim();
+      const word = fullTextRef.current.substring(start, end).trim();
       
       if (!word) return;
       
-      // Create a highlighted version of the content
+      // Find and highlight this word in the content
+      // This is an approximation since the plain text position doesn't directly map to HTML
+      const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordRegex = new RegExp(`(\\b${escapedWord}\\b)`, 'gi');
+      
       const highlighted = DOMPurify.sanitize(content)
-        .replace(new RegExp(`(\\b${word}\\b)`, 'gi'), 
-                '<span class="bg-primary/20 text-primary font-bold rounded-sm px-0.5">$1</span>');
+        .replace(wordRegex, 
+                '<span class="bg-primary/30 text-primary font-bold rounded px-0.5">$1</span>');
       
       setHighlightedContent(highlighted);
       
       // Scroll to the highlighted word
-      const activeElements = contentRef.current?.querySelectorAll('.bg-primary/20');
+      const activeElements = contentRef.current?.querySelectorAll('.bg-primary/30');
       if (activeElements && activeElements.length > 0) {
         const activeElement = activeElements[0];
         activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -109,15 +120,15 @@ export function ImmersiveReader({
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, plainText, speaking, content]);
+  }, [currentWordPosition, speaking, content]);
 
   const togglePlayback = () => {
     if (speaking) {
       paused ? resume() : pause();
     } else {
       // Pass the full text to the speak function
-      speak(plainText);
-      console.log("Speaking text of length:", plainText.length);
+      console.log("Starting speech with text length:", fullTextRef.current.length);
+      speak(fullTextRef.current);
     }
   };
 

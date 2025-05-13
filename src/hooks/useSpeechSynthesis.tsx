@@ -31,6 +31,8 @@ export function useSpeechSynthesis({
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const textContentRef = useRef<string>("");
+  const chunksRef = useRef<string[]>([]);
+  const currentChunkIndexRef = useRef<number>(0);
   
   // Check if speech synthesis is supported
   useEffect(() => {
@@ -50,14 +52,6 @@ export function useSpeechSynthesis({
   const prepareUtterance = useCallback((textToSpeak: string) => {
     if (!supported) return null;
     
-    // Split text into smaller chunks if it's too long (over 500 characters)
-    // This helps prevent speech synthesis cutoff in some browsers
-    const MAX_LENGTH = 1000;
-    if (textToSpeak.length > MAX_LENGTH) {
-      console.log(`Text is ${textToSpeak.length} chars, splitting into chunks`);
-      // We'll handle this in the speak function with multiple utterances
-    }
-    
     console.log("Creating utterance with text length:", textToSpeak.length);
     
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -67,13 +61,26 @@ export function useSpeechSynthesis({
     
     utterance.onstart = () => {
       setSpeaking(true);
-      console.log("Speech started");
+      setPaused(false);
+      console.log("Speech started for chunk:", currentChunkIndexRef.current);
     };
     
     utterance.onend = () => {
-      setSpeaking(false);
-      setCurrentWordPosition(null);
-      console.log("Speech ended");
+      // If there are more chunks to speak
+      if (currentChunkIndexRef.current < chunksRef.current.length - 1) {
+        currentChunkIndexRef.current++;
+        const nextUtterance = prepareUtterance(chunksRef.current[currentChunkIndexRef.current]);
+        if (nextUtterance) {
+          window.speechSynthesis.speak(nextUtterance);
+          utteranceRef.current = nextUtterance;
+        }
+      } else {
+        // All chunks have been spoken
+        setSpeaking(false);
+        setPaused(false);
+        setCurrentWordPosition(null);
+        console.log("All speech ended");
+      }
     };
     
     utterance.onpause = () => {
@@ -95,16 +102,69 @@ export function useSpeechSynthesis({
     // Track word boundaries for highlighting
     utterance.onboundary = (event) => {
       if (event.name === 'word') {
+        // Calculate absolute position in the full text
+        const chunkStartIndex = calculateChunkStartIndex(currentChunkIndexRef.current);
+        
         setCurrentWordPosition({
-          start: event.charIndex,
-          end: event.charIndex + event.charLength
+          start: chunkStartIndex + event.charIndex,
+          end: chunkStartIndex + event.charIndex + event.charLength
         });
-        console.log(`Word boundary: ${event.charIndex}-${event.charIndex + event.charLength}`);
+        
+        console.log(`Word boundary: ${chunkStartIndex + event.charIndex}-${chunkStartIndex + event.charIndex + event.charLength}`);
       }
     };
     
     return utterance;
   }, [rate, pitch, volume, supported]);
+  
+  // Calculate the starting position of a chunk in the full text
+  const calculateChunkStartIndex = useCallback((chunkIndex: number): number => {
+    let startIndex = 0;
+    for (let i = 0; i < chunkIndex; i++) {
+      startIndex += chunksRef.current[i].length;
+    }
+    return startIndex;
+  }, []);
+  
+  // Split text into chunks at sentence boundaries
+  const splitTextIntoChunks = useCallback((text: string): string[] => {
+    const MAX_CHUNK_LENGTH = 500; // Shorter chunks for better reliability
+    
+    // Split into sentences, trying to break at natural boundaries
+    const sentenceRegex = /[.!?]\s+/;
+    const sentences = text.split(sentenceRegex);
+    
+    const chunks: string[] = [];
+    let currentChunk = "";
+    
+    for (let i = 0; i < sentences.length; i++) {
+      let sentence = sentences[i];
+      
+      // Add back the punctuation and space that was lost in the split
+      if (i < sentences.length - 1) {
+        const punctuationMatch = text.match(new RegExp(`${sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([.!?]\\s+)`));
+        if (punctuationMatch && punctuationMatch[1]) {
+          sentence += punctuationMatch[1];
+        }
+      }
+      
+      // If adding this sentence would exceed the max length, start a new chunk
+      if (currentChunk.length + sentence.length > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+    
+    // Add the last chunk if it has content
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+    
+    console.log(`Split text into ${chunks.length} chunks`);
+    return chunks;
+  }, []);
   
   // Main speak function
   const speak = useCallback((customText?: string) => {
@@ -119,85 +179,19 @@ export function useSpeechSynthesis({
       return;
     }
     
-    // Log the full text being spoken
-    console.log(`Speaking text (${textToSpeak.length} chars)`);
+    console.log(`Speaking full text (${textToSpeak.length} chars)`);
     
-    // Break text into smaller chunks if it's longer than 1000 characters
-    // This helps with Chrome's 32kb utterance limit and prevents cutoffs
-    const MAX_CHUNK_LENGTH = 1000;
+    // Split the text into manageable chunks
+    chunksRef.current = splitTextIntoChunks(textToSpeak);
+    currentChunkIndexRef.current = 0;
     
-    if (textToSpeak.length <= MAX_CHUNK_LENGTH) {
-      // For shorter text, just use a single utterance
-      const utterance = prepareUtterance(textToSpeak);
+    // Start speaking the first chunk
+    if (chunksRef.current.length > 0) {
+      const utterance = prepareUtterance(chunksRef.current[0]);
       if (!utterance) return;
       
       utteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
-    } else {
-      // For longer text, we need to split it into chunks at sentence boundaries
-      console.log(`Text too long (${textToSpeak.length}), breaking into chunks`);
-      
-      // Find sentence boundaries (period followed by space or end of text)
-      let chunks = [];
-      let startIndex = 0;
-      let currentLength = 0;
-      let currentChunk = "";
-      
-      // Split into sentences
-      const sentences = textToSpeak.split(/(?<=\.)\s+/);
-      
-      // Group sentences into chunks of reasonable size
-      for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i];
-        if (currentLength + sentence.length <= MAX_CHUNK_LENGTH) {
-          currentChunk += (currentChunk ? " " : "") + sentence;
-          currentLength += sentence.length + 1; // +1 for the space
-        } else {
-          // Current chunk is full, start a new one
-          if (currentChunk) {
-            chunks.push(currentChunk);
-          }
-          currentChunk = sentence;
-          currentLength = sentence.length;
-        }
-      }
-      
-      // Add the last chunk if it exists
-      if (currentChunk) {
-        chunks.push(currentChunk);
-      }
-      
-      console.log(`Split into ${chunks.length} chunks`);
-      
-      // Speak only the first chunk for now
-      if (chunks.length > 0) {
-        const utterance = prepareUtterance(chunks[0]);
-        if (!utterance) return;
-        
-        // Queue up the next chunks when each chunk finishes
-        let currentChunkIndex = 0;
-        
-        utterance.onend = function() {
-          currentChunkIndex++;
-          if (currentChunkIndex < chunks.length) {
-            const nextUtterance = prepareUtterance(chunks[currentChunkIndex]);
-            if (nextUtterance) {
-              // Carry forward the onend handler for chaining
-              nextUtterance.onend = utterance.onend;
-              window.speechSynthesis.speak(nextUtterance);
-              utteranceRef.current = nextUtterance;
-            }
-          } else {
-            // All chunks finished
-            setSpeaking(false);
-            setCurrentWordPosition(null);
-            console.log("Speech ended (all chunks)");
-          }
-        };
-        
-        utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
-      }
     }
     
     // Some browsers have a bug where speech stops after ~15 seconds
@@ -217,10 +211,10 @@ export function useSpeechSynthesis({
       } catch (e) {
         console.error("Error in speech keepalive:", e);
       }
-    }, 9000); // Every 9 seconds
+    }, 5000); // Every 5 seconds
     
     return () => clearInterval(intervalId);
-  }, [supported, prepareUtterance, speaking, paused]);
+  }, [supported, prepareUtterance, splitTextIntoChunks, speaking, paused]);
   
   const stop = useCallback(() => {
     if (!supported) return;
@@ -229,6 +223,7 @@ export function useSpeechSynthesis({
     setSpeaking(false);
     setPaused(false);
     setCurrentWordPosition(null);
+    currentChunkIndexRef.current = 0;
   }, [supported]);
   
   const pause = useCallback(() => {
