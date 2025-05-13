@@ -46,17 +46,24 @@ export function ImmersiveReader({
       // Get the text content of the div (includes all text from all elements)
       const extractedText = tempDiv.textContent || tempDiv.innerText || "";
       
+      // Clean up the text by removing extra whitespace and newlines
+      const cleanedText = extractedText
+        .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
+        .replace(/\n+/g, ' ')  // Replace newlines with spaces
+        .trim();               // Remove leading/trailing whitespace
+      
       // Combine title and content with proper spacing
-      const fullText = `${title}. ${extractedText}`;
+      const fullText = `${title}. ${cleanedText}`;
       setPlainText(fullText);
       fullTextRef.current = fullText;
       
       setHighlightedContent(DOMPurify.sanitize(content));
       
       // Debug log
-      console.log("Extracted text length:", extractedText.length);
-      console.log("First 100 chars:", extractedText.substring(0, 100));
-      console.log("Last 100 chars:", extractedText.substring(extractedText.length - 100));
+      console.log("Extracted text length:", cleanedText.length);
+      console.log("First 100 chars:", cleanedText.substring(0, 100));
+      console.log("Last 100 chars:", cleanedText.substring(cleanedText.length - 100));
+      console.log("Full text to be read:", fullText.substring(0, 200) + "...");
     }
   }, [isOpen, content, title]);
 

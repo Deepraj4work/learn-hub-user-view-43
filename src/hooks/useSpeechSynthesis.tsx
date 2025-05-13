@@ -48,13 +48,23 @@ export function useSpeechSynthesis({
     }
   }, [text]);
   
+  // Clean text before speech processing
+  const cleanTextForSpeech = useCallback((text: string): string => {
+    // Remove extra whitespace and normalize
+    return text
+      .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
+      .replace(/\n+/g, ' ')  // Replace newlines with spaces
+      .trim();               // Remove leading/trailing whitespace
+  }, []);
+  
   // Prepare utterance with proper event handlers
   const prepareUtterance = useCallback((textToSpeak: string) => {
     if (!supported) return null;
     
     console.log("Creating utterance with text length:", textToSpeak.length);
+    const cleanedText = cleanTextForSpeech(textToSpeak);
     
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
@@ -115,7 +125,7 @@ export function useSpeechSynthesis({
     };
     
     return utterance;
-  }, [rate, pitch, volume, supported]);
+  }, [rate, pitch, volume, supported, cleanTextForSpeech]);
   
   // Calculate the starting position of a chunk in the full text
   const calculateChunkStartIndex = useCallback((chunkIndex: number): number => {
@@ -126,45 +136,72 @@ export function useSpeechSynthesis({
     return startIndex;
   }, []);
   
-  // Split text into chunks at sentence boundaries
+  // Split text into chunks intelligently (at sentence boundaries where possible)
   const splitTextIntoChunks = useCallback((text: string): string[] => {
-    const MAX_CHUNK_LENGTH = 500; // Shorter chunks for better reliability
+    const MAX_CHUNK_LENGTH = 200; // Shorter chunks for better reliability
+    const cleanedText = cleanTextForSpeech(text);
     
-    // Split into sentences, trying to break at natural boundaries
-    const sentenceRegex = /[.!?]\s+/;
-    const sentences = text.split(sentenceRegex);
+    // First, split by sentences to avoid cutting in the middle
+    const sentenceEndings = /([.!?])\s+/g;
+    let sentences: string[] = [];
+    let lastIndex = 0;
+    let match;
     
+    // Extract sentences with their punctuation
+    while ((match = sentenceEndings.exec(cleanedText)) !== null) {
+      sentences.push(cleanedText.substring(lastIndex, match.index + 1));
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add the last sentence if there's text remaining
+    if (lastIndex < cleanedText.length) {
+      sentences.push(cleanedText.substring(lastIndex));
+    }
+    
+    // Now group sentences into chunks of reasonable size
     const chunks: string[] = [];
     let currentChunk = "";
     
-    for (let i = 0; i < sentences.length; i++) {
-      let sentence = sentences[i];
-      
-      // Add back the punctuation and space that was lost in the split
-      if (i < sentences.length - 1) {
-        const punctuationMatch = text.match(new RegExp(`${sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([.!?]\\s+)`));
-        if (punctuationMatch && punctuationMatch[1]) {
-          sentence += punctuationMatch[1];
-        }
-      }
-      
-      // If adding this sentence would exceed the max length, start a new chunk
+    for (const sentence of sentences) {
+      // If adding this sentence would make the chunk too long
       if (currentChunk.length + sentence.length > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
-        chunks.push(currentChunk);
-        currentChunk = sentence;
+        // If the sentence itself is very long, split it at word boundaries
+        if (sentence.length > MAX_CHUNK_LENGTH) {
+          chunks.push(currentChunk);
+          
+          const words = sentence.split(/\s+/);
+          currentChunk = "";
+          
+          for (const word of words) {
+            if (currentChunk.length + word.length + 1 > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
+              chunks.push(currentChunk);
+              currentChunk = word + " ";
+            } else {
+              currentChunk += word + " ";
+            }
+          }
+        } else {
+          // Otherwise, start a new chunk with this sentence
+          chunks.push(currentChunk);
+          currentChunk = sentence;
+        }
       } else {
         currentChunk += sentence;
       }
     }
     
-    // Add the last chunk if it has content
+    // Add the last chunk if needed
     if (currentChunk.length > 0) {
       chunks.push(currentChunk);
     }
     
     console.log(`Split text into ${chunks.length} chunks`);
+    chunks.forEach((chunk, i) => {
+      console.log(`Chunk ${i} (${chunk.length} chars): ${chunk.substring(0, 30)}...`);
+    });
+    
     return chunks;
-  }, []);
+  }, [cleanTextForSpeech]);
   
   // Main speak function
   const speak = useCallback((customText?: string) => {
@@ -192,6 +229,12 @@ export function useSpeechSynthesis({
       
       utteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
+      
+      // Log the first few chunks for debugging
+      console.log("First chunk:", chunksRef.current[0].substring(0, 50) + "...");
+      if (chunksRef.current.length > 1) {
+        console.log("Second chunk:", chunksRef.current[1].substring(0, 50) + "...");
+      }
     }
     
     // Some browsers have a bug where speech stops after ~15 seconds
