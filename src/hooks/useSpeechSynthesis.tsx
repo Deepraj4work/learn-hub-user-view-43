@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { cleanTextForSpeech } from "@/lib/utils";
@@ -61,8 +60,8 @@ export function useSpeechSynthesis({
     }
   }, [text]);
   
-  // Handle speech errors gracefully
-  const handleSpeechError = useCallback(() => {
+  // Handle speech errors gracefully with more detailed information
+  const handleSpeechError = useCallback((error?: any) => {
     // Cancel any ongoing speech
     try {
       window.speechSynthesis.cancel();
@@ -75,8 +74,14 @@ export function useSpeechSynthesis({
     setPaused(false);
     setCurrentWordPosition(null);
     
-    // Notify user
-    toast.error("There was a problem with the text-to-speech feature. Please try again");
+    // Log detailed error information for debugging
+    console.error("Speech synthesis error details:", error);
+    
+    // Provide a more helpful error message to the user
+    toast.error(
+      "There was a problem with the text-to-speech feature. Please try a different voice or refresh the page.",
+      { duration: 5000 }
+    );
   }, []);
   
   // Prepare text and analyze word boundaries before speech
@@ -119,7 +124,7 @@ export function useSpeechSynthesis({
     }
   }, []);
   
-  // Prepare utterance with proper event handlers
+  // Prepare utterance with improved error handling
   const prepareUtterance = useCallback((textToSpeak: string, chunkIndex: number) => {
     if (!supported) return null;
     
@@ -168,7 +173,7 @@ export function useSpeechSynthesis({
           }
         } catch (error) {
           console.error("Error in onend handler:", error);
-          handleSpeechError();
+          handleSpeechError(error);
         }
       };
       
@@ -184,7 +189,8 @@ export function useSpeechSynthesis({
       
       utterance.onerror = (event) => {
         console.error(`Speech error in chunk ${chunkIndex}:`, event);
-        handleSpeechError();
+        // Pass the event object to get more details about the error
+        handleSpeechError(event);
       };
       
       // Word boundary event - Critical part for highlighting
@@ -238,7 +244,7 @@ export function useSpeechSynthesis({
       return utterance;
     } catch (error) {
       console.error("Error preparing utterance:", error);
-      handleSpeechError();
+      handleSpeechError(error);
       return null;
     }
   }, [rate, pitch, volume, voice, supported, handleSpeechError]);
@@ -292,7 +298,7 @@ export function useSpeechSynthesis({
     }
   }, []);
   
-  // Main speak function
+  // Main speak function with improved error recovery
   const speak = useCallback((customText?: string) => {
     if (!supported) return;
     
@@ -303,6 +309,7 @@ export function useSpeechSynthesis({
       const textToSpeak = customText || textContentRef.current;
       if (!textToSpeak) {
         console.warn("No text to speak");
+        toast.warning("No text available to read");
         return;
       }
       
@@ -319,12 +326,21 @@ export function useSpeechSynthesis({
       if (chunksRef.current.length > 0) {
         const utterance = prepareUtterance(chunksRef.current[0], 0);
         if (!utterance) {
-          handleSpeechError();
+          handleSpeechError(new Error("Failed to create utterance"));
           return;
         }
         
         utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
+        
+        // Add a small delay before starting speech to ensure browser is ready
+        setTimeout(() => {
+          try {
+            window.speechSynthesis.speak(utterance);
+          } catch (error) {
+            console.error("Error starting speech:", error);
+            handleSpeechError(error);
+          }
+        }, 100);
       }
       
       // Workaround for Chrome bug where speech stops after ~15 seconds
@@ -347,7 +363,7 @@ export function useSpeechSynthesis({
       return () => clearInterval(intervalId);
     } catch (error) {
       console.error("Error starting speech:", error);
-      handleSpeechError();
+      handleSpeechError(error);
     }
   }, [supported, prepareUtterance, splitTextIntoChunks, speaking, paused, handleSpeechError, prepareTextAndBoundaries]);
   

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   LayoutGrid,
   Volume2,
   VolumeX,
+  RefreshCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
@@ -349,7 +349,35 @@ export function ImmersiveReader({
       }
     } catch (error) {
       console.error("Error toggling playback:", error);
-      toast.error("Error controlling playback");
+      toast.error("Error controlling playback. Please try again.");
+    }
+  };
+  
+  // Add a restart function to handle retrying after errors
+  const handleRestart = () => {
+    try {
+      // First stop any ongoing speech
+      stop();
+      
+      // Clear current position
+      currentWordIndexRef.current = -1;
+      
+      // Reset all highlighting
+      if (contentRef.current) {
+        const allWords = contentRef.current.querySelectorAll('.reader-word');
+        allWords.forEach(word => {
+          word.classList.remove('highlight-word');
+        });
+      }
+      
+      // Short delay before restarting
+      setTimeout(() => {
+        speak(textContent);
+        toast.success("Reading restarted");
+      }, 300);
+    } catch (error) {
+      console.error("Error restarting playback:", error);
+      toast.error("Could not restart reading. Please try refreshing the page.");
     }
   };
 
@@ -523,19 +551,32 @@ export function ImmersiveReader({
         {/* Audio Controls */}
         <div className="flex items-center justify-center p-4 border-t">
           {supported ? (
-            <Button
-              variant="outline"
-              size="lg"
-              className="rounded-full w-14 h-14 flex items-center justify-center"
-              onClick={togglePlayback}
-              aria-label={speaking && !paused ? "Pause Reading" : "Start Reading"}
-            >
-              {speaking && !paused ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6 ml-1" />
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleRestart}
+                aria-label="Restart Reading"
+                className="rounded-full w-10 h-10"
+                title="Restart reading from the beginning"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="lg"
+                className="rounded-full w-14 h-14 flex items-center justify-center"
+                onClick={togglePlayback}
+                aria-label={speaking && !paused ? "Pause Reading" : "Start Reading"}
+              >
+                {speaking && !paused ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6 ml-1" />
+                )}
+              </Button>
+            </div>
           ) : (
             <div className="text-sm text-muted-foreground">
               Text-to-speech not supported in this browser
