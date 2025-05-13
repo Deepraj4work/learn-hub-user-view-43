@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 
 interface UseSpeechSynthesisProps {
@@ -116,6 +115,7 @@ export function useSpeechSynthesis({
       
       utteranceRef.current.onstart = () => {
         setSpeaking(true);
+        console.log("Speech started");
         
         // Chrome bug fix - speech stops after about 15 seconds
         if (synthInterval) clearInterval(synthInterval);
@@ -141,6 +141,7 @@ export function useSpeechSynthesis({
         setPaused(false);
         setCurrentWord("");
         setCurrentSentence("");
+        console.log("Speech ended");
       };
       
       utteranceRef.current.onpause = () => setPaused(true);
@@ -153,6 +154,7 @@ export function useSpeechSynthesis({
           const wordLength = event.charLength || 1;
           const word = text.substring(wordPosition, wordPosition + wordLength);
           setCurrentWord(word);
+          console.log("Current word:", word);
           
           // Extract the current sentence (approximate by finding boundaries)
           let sentenceStart = text.lastIndexOf('. ', wordPosition) + 2;
@@ -173,7 +175,7 @@ export function useSpeechSynthesis({
           // Auto-scroll if element reference is provided
           if (elementRef?.current) {
             // Find the position of the current word
-            const paragraphs = elementRef.current.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, span');
+            const paragraphs = elementRef.current.querySelectorAll('p, h1, h2, h3, h4, h5, h5, li, span');
             
             // Traverse all paragraph-like elements to find where our word is
             for (const paragraph of paragraphs) {
@@ -181,15 +183,16 @@ export function useSpeechSynthesis({
               if (content.includes(word)) {
                 const wordIndex = content.indexOf(word);
                 if (wordIndex >= 0) {
-                  // Get paragraph position - adding type assertion here
+                  // Use type assertion to access HTMLElement properties
                   const htmlParagraph = paragraph as HTMLElement;
                   const paragraphTop = htmlParagraph.offsetTop;
                   const paragraphHeight = htmlParagraph.offsetHeight;
                   const containerHeight = elementRef.current.clientHeight;
                   
-                  // Calculate scroll position to keep the word near the middle
-                  const scrollPosition = paragraphTop - (containerHeight / 3);
+                  // Calculate scroll position to keep the word in view 
+                  const scrollPosition = paragraphTop - (containerHeight / 4);
                   if (scrollPosition > 0) {
+                    console.log("Scrolling to:", scrollPosition);
                     elementRef.current.scrollTop = scrollPosition;
                   }
                   break;
@@ -218,6 +221,7 @@ export function useSpeechSynthesis({
     
     // Cancel any previous speech
     window.speechSynthesis.cancel();
+    console.log("Starting speech with text length:", text.length);
     
     // Speak the new text
     window.speechSynthesis.speak(utteranceRef.current);

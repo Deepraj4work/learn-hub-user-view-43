@@ -89,9 +89,9 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         const beforeTextNode = document.createTextNode(beforeWord);
         const afterTextNode = document.createTextNode(afterWord);
         
-        // Create highlight span with larger text and animation
+        // Create highlight span with increased text size and strong animation
         const highlightSpan = document.createElement("span");
-        highlightSpan.className = "bg-primary text-white animate-highlight-pulse font-bold px-1 py-0.5 rounded text-3xl";
+        highlightSpan.className = "bg-primary text-white animate-highlight-pulse font-bold px-2 py-1 rounded text-4xl mx-1";
         highlightSpan.textContent = currentWord;
         
         // Replace the original node with our three new nodes
@@ -134,23 +134,31 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
     onHighlight: handleHighlight
   });
   
-  // Auto-start speech when dialog opens
+  // Auto-start speech when dialog opens - with a more reliable approach
   useEffect(() => {
-    if (isOpen && supported && !autoStarted) {
-      // Small delay to ensure content is ready
-      const timer = setTimeout(() => {
+    let timer: number | null = null;
+    
+    if (isOpen && supported && !autoStarted && plainText) {
+      // Longer delay to ensure content is fully ready
+      timer = window.setTimeout(() => {
+        console.log("Auto-starting speech...");
         speak();
         setAutoStarted(true);
-      }, 500);
-      
-      return () => clearTimeout(timer);
+      }, 1000);
     }
     
     // Reset auto-started flag when closed
     if (!isOpen) {
       setAutoStarted(false);
+      if (speaking) {
+        stop();
+      }
     }
-  }, [isOpen, speak, supported, autoStarted]);
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isOpen, speak, supported, autoStarted, plainText, speaking, stop]);
   
   // Stop speech when component unmounts or dialog closes
   useEffect(() => {
@@ -229,7 +237,7 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-reader-background text-reader-text">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-slate-50 dark:bg-slate-900 immersive-reader">
         {/* Header */}
         <div className="flex items-center justify-between border-b p-4 bg-white dark:bg-gray-900">
           <div className="flex items-center gap-2">
@@ -336,12 +344,12 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         )}
         
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-reader-background text-reader-text">
+        <div className="flex-1 overflow-y-auto p-8 md:p-16 immersive-reader-text">
           <div className="max-w-2xl mx-auto space-y-8" ref={contentRef}>
-            <h1 className="text-3xl font-bold text-center mb-6">{title}</h1>
+            <h1 className="immersive-reader-heading">{title}</h1>
             
             <div className={cn("prose prose-slate dark:prose-invert max-w-none", fontSize, lineHeight)}>
-              {/* This would be the parsed content with highlighting */}
+              {/* This is the parsed content with highlighting */}
               <div dangerouslySetInnerHTML={{ __html: speaking ? processedContent : content }} />
             </div>
           </div>
@@ -349,15 +357,15 @@ export function ImmersiveReader({ title, content, isOpen, onClose }: ImmersiveRe
         
         {/* Reading status */}
         {speaking && (
-          <div className="px-8 py-2 border-t bg-primary/5">
-            <p className="text-sm italic text-center">
+          <div className="px-8 py-3 border-t bg-primary/10">
+            <p className="text-center text-base font-medium">
               {currentSentence ? `"${currentSentence}"` : "Reading..."}
             </p>
           </div>
         )}
         
         {/* Audio controls */}
-        <div className="flex items-center justify-center gap-4 p-4 border-t bg-white dark:bg-gray-900">
+        <div className="flex items-center justify-center gap-4 p-4 border-t bg-white dark:bg-gray-900 immersive-reader-controls">
           {supported ? (
             <>
               <Button
