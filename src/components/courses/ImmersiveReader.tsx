@@ -39,9 +39,10 @@ export function ImmersiveReader({
   const [volume, setVolume] = useState(1);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [words, setWords] = useState<string[]>([]);
+  const [textContent, setTextContent] = useState("");
   
   const contentRef = useRef<HTMLDivElement>(null);
+  const wordsRef = useRef<HTMLSpanElement[]>([]);
   const fullTextRef = useRef<string>("");
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
@@ -79,14 +80,15 @@ export function ImmersiveReader({
     };
   }, [selectedVoiceURI]);
 
-  // Extract plain text from HTML content
+  // Extract plain text and prepare for TTS
   useEffect(() => {
     if (isOpen && content) {
       try {
+        // Create a temporary element to parse the HTML content
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = DOMPurify.sanitize(content);
         
-        // Get plain text from the HTML
+        // Extract text content
         const extractedText = tempDiv.textContent || tempDiv.innerText || "";
         
         // Clean the text for better TTS processing
@@ -99,14 +101,12 @@ export function ImmersiveReader({
         const fullText = `${title}. ${cleanedText}`;
         setPlainText(fullText);
         fullTextRef.current = fullText;
-        
-        // Split text into words for highlighting
-        setWords(fullText.split(/\s+/));
-        
-        // Process content for word-by-word highlighting
-        processContentForHighlighting(content);
+        setTextContent(fullText);
         
         console.log("Text prepared for speech, length:", fullText.length);
+        
+        // Create processed content for display with word spans
+        processContentForHighlighting(content);
       } catch (error) {
         console.error("Error extracting text:", error);
         toast.error("Error processing text content");
@@ -117,52 +117,50 @@ export function ImmersiveReader({
   // Process HTML content for highlighting
   const processContentForHighlighting = (htmlContent: string) => {
     try {
-      // Create processed content with spans around words for highlighting
+      // Create a document from the HTML content
       const parser = new DOMParser();
       const doc = parser.parseFromString(DOMPurify.sanitize(htmlContent), 'text/html');
       
       // Process all text nodes
-      const processNode = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+      const walkNode = (node: Node) => {
+        // We're only interested in text nodes with content
+        if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim()) {
+          // Create a document fragment to replace this text node
+          const fragment = document.createDocumentFragment();
+          
+          // Get the text and split it into words
           const text = node.textContent;
-          if (text.trim()) {
-            // Create a fragment to replace this text node
-            const fragment = document.createDocumentFragment();
-            
-            // Split by word boundaries and create spans
-            const parts = text.split(/(\s+)/);
-            parts.forEach((part) => {
-              if (part.trim()) {
-                // It's a word - wrap in span
-                const span = document.createElement('span');
-                span.className = 'reader-word';
-                span.textContent = part;
-                fragment.appendChild(span);
-              } else {
-                // It's whitespace - keep as is
-                fragment.appendChild(document.createTextNode(part));
-              }
-            });
-            
-            // Replace the text node with our fragment
-            if (node.parentNode) {
-              node.parentNode.replaceChild(fragment, node);
+          const words = text.split(/(\s+)/);
+          
+          words.forEach((part) => {
+            if (part.trim()) {
+              // It's a word - wrap in span
+              const span = document.createElement('span');
+              span.className = 'reader-word';
+              span.dataset.word = part.trim();
+              span.textContent = part;
+              fragment.appendChild(span);
+            } else {
+              // It's whitespace - keep as is
+              fragment.appendChild(document.createTextNode(part));
             }
+          });
+          
+          // Replace the original text node with our fragment
+          if (node.parentNode) {
+            node.parentNode.replaceChild(fragment, node);
           }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-          // Skip pre and code elements to preserve formatting
-          if (
-            (node as Element).tagName !== 'PRE' && 
-            (node as Element).tagName !== 'CODE'
-          ) {
+          // Skip certain elements to preserve formatting
+          if (!['PRE', 'CODE'].includes((node as Element).tagName)) {
             // Process all child nodes
-            Array.from(node.childNodes).forEach(processNode);
+            Array.from(node.childNodes).forEach(walkNode);
           }
         }
       };
       
       // Process all nodes in the body
-      Array.from(doc.body.childNodes).forEach(processNode);
+      Array.from(doc.body.childNodes).forEach(walkNode);
       
       // Set the processed HTML content
       setProcessedContent(doc.body.innerHTML);
@@ -185,7 +183,7 @@ export function ImmersiveReader({
     supported,
     currentWordPosition
   } = useSpeechSynthesis({
-    text: fullTextRef.current,
+    text: textContent,
     rate: 1,
     pitch: 1,
     volume,
@@ -206,9 +204,22 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
+  // Rebuild the words reference array when the processed content changes
+  useEffect(() => {
+    if (contentRef.current && processedContent) {
+      // Give time for the DOM to update
+      setTimeout(() => {
+        if (contentRef.current) {
+          wordsRef.current = Array.from(contentRef.current.querySelectorAll('.reader-word'));
+          console.log(`Found ${wordsRef.current.length} words for highlighting`);
+        }
+      }, 100);
+    }
+  }, [processedContent]);
+
   // Highlight the current word being spoken
   useEffect(() => {
-    if (!speaking || !currentWordPosition) {
+    if (!speaking || !currentWordPosition || !contentRef.current) {
       // Clear all highlights when not speaking
       const allWords = contentRef.current?.querySelectorAll('.reader-word');
       allWords?.forEach(word => {
@@ -218,59 +229,44 @@ export function ImmersiveReader({
     }
     
     try {
-      // Find which word is being spoken based on position
-      const { start } = currentWordPosition;
+      // Clear previous highlights
+      const allWords = contentRef.current.querySelectorAll('.reader-word');
+      allWords?.forEach(word => {
+        word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+      });
       
-      // Get the word at this position in our full text
-      let charCount = 0;
-      let targetWordIndex = -1;
+      // Find the word to highlight
+      const { word: currentWord } = currentWordPosition;
       
-      for (let i = 0; i < words.length; i++) {
-        const wordLength = words[i].length;
+      // Find the word element by its content
+      const wordElement = Array.from(allWords).find(el => 
+        el.textContent?.trim().toLowerCase() === currentWord.toLowerCase()
+      );
+      
+      if (wordElement) {
+        // Apply highlighting
+        wordElement.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
         
-        // Is this our target word?
-        if (start >= charCount && start < charCount + wordLength + 1) {
-          targetWordIndex = i;
-          break;
-        }
-        
-        // Move to next word position (add 1 for space)
-        charCount += wordLength + 1;
-      }
-      
-      // We found the word index, now highlight the corresponding element
-      if (targetWordIndex >= 0) {
-        // Clear previous highlights
-        const allWords = contentRef.current?.querySelectorAll('.reader-word');
-        allWords?.forEach(word => {
-          word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+        // Scroll to the element if needed
+        wordElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
         });
         
-        // Find and highlight the word at this index
-        const wordElements = contentRef.current?.querySelectorAll('.reader-word');
-        if (wordElements && targetWordIndex < wordElements.length) {
-          const targetElement = wordElements[targetWordIndex];
-          targetElement.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
-          
-          // Scroll to the element if needed
-          targetElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'nearest'
-          });
-        }
+        console.log(`Highlighted word: "${currentWord}"`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, speaking, words]);
+  }, [currentWordPosition, speaking]);
 
   const togglePlayback = () => {
     try {
       if (speaking) {
         paused ? resume() : pause();
       } else {
-        speak(fullTextRef.current);
+        speak(textContent);
         toast.success("Reading started");
       }
     } catch (error) {
@@ -306,7 +302,7 @@ export function ImmersiveReader({
       if (speaking) {
         // Update volume on the fly
         stop();
-        speak(fullTextRef.current); // Restart with new volume
+        speak(textContent); // Restart with new volume
       }
     } catch (error) {
       console.error("Error changing volume:", error);
@@ -319,7 +315,7 @@ export function ImmersiveReader({
       if (speaking) {
         // Update voice on the fly
         stop();
-        speak(fullTextRef.current); // Restart with new voice
+        speak(textContent); // Restart with new voice
       }
     } catch (error) {
       console.error("Error changing voice:", error);

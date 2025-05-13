@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { cleanTextForSpeech } from "@/lib/utils";
@@ -19,7 +18,7 @@ interface UseSpeechSynthesisReturn {
   speaking: boolean;
   paused: boolean;
   supported: boolean;
-  currentWordPosition: { start: number; end: number } | null;
+  currentWordPosition: { start: number; end: number; word: string } | null;
 }
 
 export function useSpeechSynthesis({
@@ -32,7 +31,7 @@ export function useSpeechSynthesis({
   const [speaking, setSpeaking] = useState(false);
   const [paused, setPaused] = useState(false);
   const [supported, setSupported] = useState(false);
-  const [currentWordPosition, setCurrentWordPosition] = useState<{ start: number; end: number } | null>(null);
+  const [currentWordPosition, setCurrentWordPosition] = useState<{ start: number; end: number; word: string } | null>(null);
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const textContentRef = useRef<string>("");
@@ -86,8 +85,8 @@ export function useSpeechSynthesis({
       let currentPosition = 0;
       words.forEach(word => {
         if (word) {
-          const start = currentPosition;
-          const end = currentPosition + word.length;
+          const start = cleanedText.indexOf(word, currentPosition);
+          const end = start + word.length;
           
           boundaries.push({
             word,
@@ -95,7 +94,7 @@ export function useSpeechSynthesis({
             end
           });
           
-          // Move position (add word length + space)
+          // Move position to after this word
           currentPosition = end + 1;
         }
       });
@@ -106,6 +105,7 @@ export function useSpeechSynthesis({
         boundaries
       };
       
+      console.log("Word boundaries calculated:", boundaries.length, "words");
       return cleanedText;
     } catch (error) {
       console.error("Error preparing text:", error);
@@ -181,36 +181,31 @@ export function useSpeechSynthesis({
         handleSpeechError();
       };
       
-      // Use our pre-calculated word boundaries to track words
+      // Word boundary event - This is the critical part for highlighting
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           try {
-            // Find the word at this position in our pre-calculated boundaries
-            const approxWordIndex = Math.floor(event.charIndex / 5);
-            const startIndex = Math.max(0, approxWordIndex - 3); // Look a few words back
-            const endIndex = Math.min(wordBoundariesRef.current.boundaries.length - 1, approxWordIndex + 3); // And a few words forward
+            // Get the word from the text being spoken
+            let charIndex = event.charIndex;
+            let wordLength = 0;
             
-            // Find the closest match
-            let bestMatch = null;
-            let smallestDiff = Infinity;
+            // Find which word we're at
+            const currentText = wordBoundariesRef.current.text;
+            const textUpToCharIndex = currentText.substring(0, charIndex);
+            const wordCount = textUpToCharIndex.split(/\s+/).filter(Boolean).length;
             
-            for (let i = startIndex; i <= endIndex; i++) {
-              const boundary = wordBoundariesRef.current.boundaries[i];
-              const diff = Math.abs(boundary.start - event.charIndex);
-              
-              if (diff < smallestDiff) {
-                smallestDiff = diff;
-                bestMatch = boundary;
-              }
-            }
+            // Get the corresponding word from our pre-calculated boundaries
+            const boundary = wordBoundariesRef.current.boundaries[wordCount];
             
-            if (bestMatch) {
+            if (boundary) {
+              // Set the current word position
               setCurrentWordPosition({
-                start: bestMatch.start,
-                end: bestMatch.end
+                start: boundary.start,
+                end: boundary.end,
+                word: boundary.word
               });
               
-              console.log(`Word boundary: "${bestMatch.word}" at ${bestMatch.start}-${bestMatch.end}`);
+              console.log(`Word boundary: "${boundary.word}" at ${boundary.start}-${boundary.end}`);
             }
           } catch (error) {
             console.error("Error in boundary event handler:", error);
