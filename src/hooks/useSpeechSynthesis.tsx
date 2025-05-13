@@ -1,5 +1,5 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
-import { cleanTextForSpeech } from "@/lib/utils";
 
 interface UseSpeechSynthesisProps {
   text?: string;
@@ -50,6 +50,108 @@ export function useSpeechSynthesis({
       textContentRef.current = text;
     }
   }, [text]);
+  
+  // Clean text before speech processing
+  const cleanTextForSpeech = useCallback((text: string): string => {
+    // Enhanced text cleaning with multiple strategies for problematic whitespace
+    return text
+      .replace(/\s+/g, ' ')         // Replace multiple spaces with a single space
+      .replace(/[\n\r\t\f\v]+/g, ' ')  // Replace all newlines, tabs, etc with spaces
+      .replace(/\u00A0/g, ' ')      // Replace non-breaking spaces
+      .replace(/\u2003/g, ' ')      // Replace em spaces
+      .replace(/\u2002/g, ' ')      // Replace en spaces
+      .replace(/\u2000/g, ' ')      // Replace other Unicode spaces
+      .replace(/\. +/g, '. ')       // Normalize spaces after periods
+      .replace(/ +\./g, '.')        // Normalize spaces before periods
+      .trim();                      // Remove leading/trailing whitespace
+  }, []);
+  
+  // Prepare utterance with proper event handlers
+  const prepareUtterance = useCallback((textToSpeak: string, chunkIndex: number, totalOffset: number) => {
+    if (!supported) return null;
+    
+    console.log(`Creating utterance for chunk ${chunkIndex} with length: ${textToSpeak.length}`);
+    const cleanedText = cleanTextForSpeech(textToSpeak);
+    
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = volume;
+    
+    // Set voice if provided
+    if (voice) {
+      utterance.voice = voice;
+    }
+    
+    utterance.onstart = () => {
+      setSpeaking(true);
+      setPaused(false);
+      console.log(`Speech started for chunk: ${chunkIndex}`);
+    };
+    
+    utterance.onend = () => {
+      console.log(`Speech ended for chunk: ${chunkIndex}, chunks length: ${chunksRef.current.length}`);
+      
+      // If there are more chunks to speak
+      if (currentChunkIndexRef.current < chunksRef.current.length - 1) {
+        currentChunkIndexRef.current++;
+        
+        // Calculate offset for the next chunk
+        let nextOffset = totalOffset;
+        for (let i = 0; i < currentChunkIndexRef.current; i++) {
+          nextOffset += chunksRef.current[i].length;
+        }
+        
+        const nextUtterance = prepareUtterance(
+          chunksRef.current[currentChunkIndexRef.current],
+          currentChunkIndexRef.current,
+          nextOffset
+        );
+        
+        if (nextUtterance) {
+          window.speechSynthesis.speak(nextUtterance);
+          utteranceRef.current = nextUtterance;
+        }
+      } else {
+        // All chunks have been spoken
+        setSpeaking(false);
+        setPaused(false);
+        setCurrentWordPosition(null);
+        console.log("All speech ended");
+      }
+    };
+    
+    utterance.onpause = () => {
+      setPaused(true);
+      console.log("Speech paused");
+    };
+    
+    utterance.onresume = () => {
+      setPaused(false);
+      console.log("Speech resumed");
+    };
+    
+    utterance.onerror = (event) => {
+      console.error(`Speech error in chunk ${chunkIndex}:`, event);
+      setSpeaking(false);
+      setPaused(false);
+    };
+    
+    // Track word boundaries for highlighting, accounting for chunk offsets
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        // Add the offset of previous chunks to get the correct position in the full text
+        setCurrentWordPosition({
+          start: totalOffset + event.charIndex,
+          end: totalOffset + event.charIndex + event.charLength
+        });
+        
+        console.log(`Word boundary in chunk ${chunkIndex}: ${totalOffset + event.charIndex}-${totalOffset + event.charIndex + event.charLength}`);
+      }
+    };
+    
+    return utterance;
+  }, [rate, pitch, volume, voice, supported, cleanTextForSpeech]);
   
   // Split text into chunks intelligently (at sentence or phrase boundaries where possible)
   const splitTextIntoChunks = useCallback((text: string): string[] => {
@@ -141,95 +243,12 @@ export function useSpeechSynthesis({
     }
     
     console.log(`Split text into ${chunks.length} chunks`);
+    chunks.forEach((chunk, i) => {
+      console.log(`Chunk ${i} (${chunk.length} chars): ${chunk.substring(0, 30)}...`);
+    });
+    
     return chunks;
-  }, []);
-  
-  // Prepare utterance with proper event handlers
-  const prepareUtterance = useCallback((textToSpeak: string, chunkIndex: number, totalOffset: number) => {
-    if (!supported) return null;
-    
-    console.log(`Creating utterance for chunk ${chunkIndex} with length: ${textToSpeak.length}`);
-    const cleanedText = cleanTextForSpeech(textToSpeak);
-    
-    const utterance = new SpeechSynthesisUtterance(cleanedText);
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-    
-    // Set voice if provided
-    if (voice) {
-      utterance.voice = voice;
-    }
-    
-    utterance.onstart = () => {
-      setSpeaking(true);
-      setPaused(false);
-      console.log(`Speech started for chunk: ${chunkIndex}`);
-    };
-    
-    utterance.onend = () => {
-      console.log(`Speech ended for chunk: ${chunkIndex}, chunks length: ${chunksRef.current.length}`);
-      
-      // If there are more chunks to speak
-      if (currentChunkIndexRef.current < chunksRef.current.length - 1) {
-        currentChunkIndexRef.current++;
-        
-        // Calculate offset for the next chunk
-        let nextOffset = totalOffset;
-        for (let i = 0; i < currentChunkIndexRef.current; i++) {
-          nextOffset += chunksRef.current[i].length;
-        }
-        
-        const nextUtterance = prepareUtterance(
-          chunksRef.current[currentChunkIndexRef.current],
-          currentChunkIndexRef.current,
-          nextOffset
-        );
-        
-        if (nextUtterance) {
-          window.speechSynthesis.speak(nextUtterance);
-          utteranceRef.current = nextUtterance;
-        }
-      } else {
-        // All chunks have been spoken
-        setSpeaking(false);
-        setPaused(false);
-        setCurrentWordPosition(null);
-        console.log("All speech ended");
-      }
-    };
-    
-    utterance.onpause = () => {
-      setPaused(true);
-      console.log("Speech paused");
-    };
-    
-    utterance.onresume = () => {
-      setPaused(false);
-      console.log("Speech resumed");
-    };
-    
-    utterance.onerror = (event) => {
-      console.error(`Speech error in chunk ${chunkIndex}:`, event);
-      setSpeaking(false);
-      setPaused(false);
-    };
-    
-    // Track word boundaries for highlighting, accounting for chunk offsets
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        // Add the offset of previous chunks to get the correct position in the full text
-        setCurrentWordPosition({
-          start: totalOffset + event.charIndex,
-          end: totalOffset + event.charIndex + event.charLength
-        });
-        
-        console.log(`Word boundary in chunk ${chunkIndex}: ${totalOffset + event.charIndex}-${totalOffset + event.charIndex + event.charLength}`);
-      }
-    };
-    
-    return utterance;
-  }, [rate, pitch, volume, voice, supported]);
+  }, [cleanTextForSpeech]);
   
   // Main speak function
   const speak = useCallback((customText?: string) => {
@@ -245,6 +264,8 @@ export function useSpeechSynthesis({
     }
     
     console.log(`Speaking full text (${textToSpeak.length} chars)`);
+    console.log(`First 50 chars: "${textToSpeak.substring(0, 50)}..."`);
+    console.log(`Last 50 chars: "...${textToSpeak.substring(textToSpeak.length - 50)}"`);
     
     // Split the text into manageable chunks
     chunksRef.current = splitTextIntoChunks(textToSpeak);
@@ -281,7 +302,6 @@ export function useSpeechSynthesis({
     return () => clearInterval(intervalId);
   }, [supported, prepareUtterance, splitTextIntoChunks, speaking, paused]);
   
-  // Stop speech function
   const stop = useCallback(() => {
     if (!supported) return;
     
@@ -292,14 +312,12 @@ export function useSpeechSynthesis({
     currentChunkIndexRef.current = 0;
   }, [supported]);
   
-  // Pause speech function
   const pause = useCallback(() => {
     if (!supported) return;
     
     window.speechSynthesis.pause();
   }, [supported]);
   
-  // Resume speech function
   const resume = useCallback(() => {
     if (!supported) return;
     

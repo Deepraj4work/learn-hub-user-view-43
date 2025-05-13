@@ -1,14 +1,16 @@
 
 import * as React from "react";
-import type { ToastInfo } from "@/components/ui/toast";
+import type { Toast } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000;
 
-type ToasterToast = ToastInfo & {
+type ToasterToast = Toast & {
   id: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  variant?: "default" | "destructive";
 };
 
 const actionTypes = {
@@ -121,7 +123,7 @@ function dispatch(action: Action) {
   });
 }
 
-type Toast = Omit<ToastInfo, "id">;
+type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
   const id = genId();
