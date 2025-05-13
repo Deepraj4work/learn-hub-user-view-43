@@ -131,7 +131,9 @@ export function LessonView() {
 
   const handleOpenImmersiveReader = () => {
     setIsImmersiveReaderOpen(true);
-    toast.success("Immersive Reader activated");
+    toast.success("Immersive Reader activated", {
+      duration: 3000
+    });
   };
 
   return (

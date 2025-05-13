@@ -85,19 +85,22 @@ export function useSpeechSynthesis({
     );
   }, []);
   
-  // Prepare text and analyze word boundaries before speech
+  // Prepare text and analyze word boundaries before speech - IMPROVED
   const prepareTextAndBoundaries = useCallback((text: string) => {
     try {
       const cleanedText = cleanTextForSpeech(text);
       
-      // Split text with regex that preserves punctuation and spacing
-      const wordRegex = /\S+|\s+/g;
-      const matches = [...cleanedText.matchAll(wordRegex)];
+      // Use a more precise regex to identify words and their boundaries
+      // This regex captures words (including punctuation) and all whitespace
+      const wordRegex = /(\S+|\s+)/g;
+      let match;
       const boundaries: {word: string, normalizedWord: string, start: number, end: number, charIndex: number}[] = [];
+      let charIndex = 0;
       
-      matches.forEach(match => {
+      // This creates a more accurate mapping of character indices to words
+      while ((match = wordRegex.exec(cleanedText)) !== null) {
         const word = match[0];
-        const start = match.index || 0;
+        const start = match.index;
         const end = start + word.length;
         
         // Only add non-whitespace segments as actual words
@@ -107,10 +110,12 @@ export function useSpeechSynthesis({
             normalizedWord: normalizeWord(word),
             start,
             end,
-            charIndex: start
+            charIndex: start // Store the exact character index where this word starts
           });
         }
-      });
+        
+        charIndex = end;
+      }
       
       // Store the analyzed text and boundaries
       wordBoundariesRef.current = {
@@ -118,7 +123,8 @@ export function useSpeechSynthesis({
         boundaries
       };
       
-      console.log("Word boundaries calculated:", boundaries.length, "words");
+      console.log(`Word boundaries calculated: ${boundaries.length} words with exact character mappings`);
+      console.log("First 5 word boundaries:", boundaries.slice(0, 5));
       return cleanedText;
     } catch (error) {
       console.error("Error preparing text:", error);
@@ -126,7 +132,7 @@ export function useSpeechSynthesis({
     }
   }, []);
   
-  // Prepare utterance with improved error handling
+  // Prepare utterance with improved error handling and boundary detection
   const prepareUtterance = useCallback((textToSpeak: string, chunkIndex: number) => {
     if (!supported) return null;
     
@@ -191,51 +197,74 @@ export function useSpeechSynthesis({
       
       utterance.onerror = (event) => {
         console.error(`Speech error in chunk ${chunkIndex}:`, event);
-        // Pass the event object to get more details about the error
         handleSpeechError(event);
       };
       
-      // Word boundary event - Critical part for highlighting
+      // IMPROVED Word boundary event handling
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           try {
             // Get the character index from the event
             const charIndex = event.charIndex;
-            console.log(`Word boundary at character index: ${charIndex}`);
             
-            // Find the closest word boundary to this charIndex
+            // Find the word that contains this character index
             const boundaries = wordBoundariesRef.current.boundaries;
-            let closestBoundary = null;
-            let minDistance = Infinity;
+            const chunkOffset = getChunkCharOffset(chunkIndex);
+            
+            // Adjust charIndex for the current chunk
+            const adjustedCharIndex = charIndex + chunkOffset;
+            
+            console.log(`Word boundary at adjusted character index: ${adjustedCharIndex} (raw: ${charIndex}, chunk offset: ${chunkOffset})`);
+            
+            // Find word boundaries that contain this character index
+            // Using a more accurate algorithm that checks if the character falls within word boundaries
+            let matchedBoundary = null;
             
             for (const boundary of boundaries) {
-              // Find the boundary that contains or is closest to this charIndex
-              if (charIndex >= boundary.start && charIndex < boundary.end) {
-                // Direct match - character is within this word's boundaries
-                closestBoundary = boundary;
+              // Check if this character index falls within or near this boundary
+              if (adjustedCharIndex >= boundary.start && 
+                  adjustedCharIndex <= boundary.end + 1) { // +1 for tolerance at word end
+                matchedBoundary = boundary;
                 break;
-              }
-              
-              // Calculate distance to this boundary
-              const distanceToStart = Math.abs(charIndex - boundary.start);
-              if (distanceToStart < minDistance) {
-                minDistance = distanceToStart;
-                closestBoundary = boundary;
               }
             }
             
-            if (closestBoundary) {
-              // Set the current word position with all needed info
+            // If no exact match, find the closest boundary
+            if (!matchedBoundary) {
+              let closestBoundary = null;
+              let minDistance = Infinity;
+              
+              for (const boundary of boundaries) {
+                // Find the closest word boundary to this charIndex
+                const distanceToStart = Math.abs(adjustedCharIndex - boundary.start);
+                const distanceToEnd = Math.abs(adjustedCharIndex - boundary.end);
+                const minDistanceToBoundary = Math.min(distanceToStart, distanceToEnd);
+                
+                if (minDistanceToBoundary < minDistance) {
+                  minDistance = minDistanceToBoundary;
+                  closestBoundary = boundary;
+                }
+              }
+              
+              matchedBoundary = closestBoundary;
+              
+              // Log this scenario for debugging
+              if (matchedBoundary) {
+                console.log(`No exact match found for charIndex ${adjustedCharIndex}. Using closest word: "${matchedBoundary.word}" at distance ${minDistance}`);
+              }
+            }
+            
+            if (matchedBoundary) {
               setCurrentWordPosition({
-                start: closestBoundary.start,
-                end: closestBoundary.end,
-                word: closestBoundary.word,
-                charIndex // Include the actual charIndex for debugging
+                start: matchedBoundary.start,
+                end: matchedBoundary.end,
+                word: matchedBoundary.word,
+                charIndex: adjustedCharIndex
               });
               
-              console.log(`Word boundary triggered: "${closestBoundary.word}" (normalized: "${closestBoundary.normalizedWord}") at ${closestBoundary.start}-${closestBoundary.end}, charIndex: ${charIndex}`);
+              console.log(`Matched word boundary: "${matchedBoundary.word}" (normalized: "${matchedBoundary.normalizedWord}") at ${matchedBoundary.start}-${matchedBoundary.end}`);
             } else {
-              console.warn(`No matching word found for character index ${charIndex}`);
+              console.warn(`No matching word found for character index ${adjustedCharIndex}`);
             }
           } catch (error) {
             console.error("Error in boundary event handler:", error);
@@ -250,6 +279,15 @@ export function useSpeechSynthesis({
       return null;
     }
   }, [rate, pitch, volume, voice, supported, handleSpeechError]);
+  
+  // Helper function to calculate character offset for multi-chunk text
+  const getChunkCharOffset = (chunkIndex: number): number => {
+    let offset = 0;
+    for (let i = 0; i < chunkIndex; i++) {
+      offset += chunksRef.current[i].length;
+    }
+    return offset;
+  };
   
   // Split text into chunks intelligently at sentence boundaries
   const splitTextIntoChunks = useCallback((text: string): string[] => {
@@ -334,7 +372,7 @@ export function useSpeechSynthesis({
         
         utteranceRef.current = utterance;
         
-        // Add a small delay before starting speech to ensure browser is ready
+        // Add a delay before starting speech to ensure browser is ready
         setTimeout(() => {
           try {
             window.speechSynthesis.speak(utterance);
@@ -342,7 +380,7 @@ export function useSpeechSynthesis({
             console.error("Error starting speech:", error);
             handleSpeechError(error);
           }
-        }, 100);
+        }, 200); // Increased delay for better reliability
       }
       
       // Workaround for Chrome bug where speech stops after ~15 seconds
@@ -429,3 +467,4 @@ export function useSpeechSynthesis({
 }
 
 export default useSpeechSynthesis;
+

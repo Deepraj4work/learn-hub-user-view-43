@@ -44,12 +44,19 @@ export function ImmersiveReader({
   
   // Track all word elements and their positions
   const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
-  const [allWordIndexes, setAllWordIndexes] = useState<{ word: string; normalizedWord: string; index: number; element: HTMLElement | null }[]>([]);
+  const [allWordIndexes, setAllWordIndexes] = useState<{ 
+    word: string; 
+    normalizedWord: string; 
+    index: number; 
+    charIndex: number; 
+    element: HTMLElement | null 
+  }[]>([]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
   const lastHighlightedIndexRef = useRef<number>(-1);
   const scrollTimeoutRef = useRef<number | null>(null);
+  const textVersionRef = useRef<number>(0); // Track text version to prevent stale references
 
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
   const lineHeights = ["leading-normal", "leading-relaxed", "leading-loose"];
@@ -86,10 +93,14 @@ export function ImmersiveReader({
     };
   }, [selectedVoiceURI]);
 
-  // Extract plain text and prepare for TTS
+  // Extract plain text and prepare for TTS - IMPROVED
   useEffect(() => {
     if (isOpen && content) {
       try {
+        // Increment text version to avoid stale references
+        textVersionRef.current++;
+        const currentVersion = textVersionRef.current;
+        
         // Create a temporary element to parse the HTML content
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = DOMPurify.sanitize(content);
@@ -111,8 +122,8 @@ export function ImmersiveReader({
         
         console.log("Text prepared for speech, length:", fullText.length);
         
-        // Process content for highlighting with improved normalization
-        processContentForHighlighting(content);
+        // Process content for highlighting with improved word mapping
+        processContentForHighlighting(content, currentVersion);
       } catch (error) {
         console.error("Error extracting text:", error);
         toast.error("Error processing text content");
@@ -120,8 +131,8 @@ export function ImmersiveReader({
     }
   }, [isOpen, content, title]);
 
-  // Process HTML content for highlighting, ensuring each word is wrapped correctly
-  const processContentForHighlighting = (htmlContent: string) => {
+  // IMPROVED: Process HTML content for highlighting with better word mapping
+  const processContentForHighlighting = (htmlContent: string, version: number) => {
     try {
       // Create a document from the HTML content
       const parser = new DOMParser();
@@ -129,9 +140,10 @@ export function ImmersiveReader({
       
       // Word index counter for data-index attributes
       let wordIndex = 0;
-      const allWords: { word: string; normalizedWord: string; index: number; element: HTMLElement | null }[] = [];
+      let globalCharIndex = 0;
+      const allWords: { word: string; normalizedWord: string; index: number; charIndex: number; element: HTMLElement | null }[] = [];
       
-      // Process all text nodes
+      // Process all text nodes with accurate character position tracking
       const walkNode = (node: Node) => {
         // We're only interested in text nodes with content
         if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim()) {
@@ -143,9 +155,11 @@ export function ImmersiveReader({
           // Match words (including punctuation) and spaces separately
           const wordRegex = /(\S+|\s+)/g;
           let match;
+          let localCharIndex = 0;
           
           while ((match = wordRegex.exec(text)) !== null) {
             const word = match[0];
+            localCharIndex = match.index;
             
             if (word.trim()) {
               // It's a word - wrap in span with data attributes
@@ -159,14 +173,16 @@ export function ImmersiveReader({
               
               span.dataset.word = originalWord;
               span.dataset.normalizedWord = normalized;
+              span.dataset.charIndex = (globalCharIndex + localCharIndex).toString();
               span.textContent = word;
               fragment.appendChild(span);
               
-              // Track this word for later lookup
+              // Track this word with character position for more accurate lookup
               allWords.push({ 
                 word: originalWord, 
                 normalizedWord: normalized,
                 index: wordIndex,
+                charIndex: globalCharIndex + localCharIndex,
                 element: null // Will be populated after rendering
               });
               
@@ -176,6 +192,9 @@ export function ImmersiveReader({
               fragment.appendChild(document.createTextNode(word));
             }
           }
+          
+          // Update global character index
+          globalCharIndex += text.length;
           
           // Replace the original text node with our fragment
           if (node.parentNode) {
@@ -194,18 +213,20 @@ export function ImmersiveReader({
       Array.from(doc.body.childNodes).forEach(walkNode);
       
       // Store the word index mapping
-      setAllWordIndexes(allWords);
+      if (version === textVersionRef.current) { // Prevent stale updates
+        setAllWordIndexes(allWords);
+      }
       
       // Set the processed HTML content
       setProcessedContent(doc.body.innerHTML);
-      console.log(`Processed content for highlighting with ${wordIndex} words`);
+      console.log(`Processed content for highlighting with ${wordIndex} words and accurate character positions`);
     } catch (error) {
       console.error("Error processing content for highlighting:", error);
       setProcessedContent(htmlContent); // Fallback to original content
     }
   };
 
-  // Configure speech synthesis
+  // Configure speech synthesis with selected voice
   const selectedVoice = availableVoices.find(voice => voice.voiceURI === selectedVoiceURI);
   
   const {
@@ -254,7 +275,7 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
-  // Create a debounced scroll function
+  // Create a debounced scroll function with longer wait time for smoother experience
   const debouncedScrollIntoView = useCallback(
     debounce((element: HTMLElement) => {
       element.scrollIntoView({
@@ -262,11 +283,11 @@ export function ImmersiveReader({
         block: 'center',
         inline: 'nearest'
       });
-    }, 150), // 150ms debounce time
+    }, 200), // Increased to 200ms for smoother scrolling
     []
   );
 
-  // Index all word elements after the content is rendered
+  // IMPROVED: Index all word elements after the content is rendered
   useEffect(() => {
     if (contentRef.current && processedContent) {
       // Give time for the DOM to update
@@ -279,23 +300,30 @@ export function ImmersiveReader({
           // Store all word elements in order
           setWordElements(spans);
           
-          // Update our word index mapping with references to actual DOM elements
+          // Update our word index mapping with references to actual DOM elements and char positions
           const updatedIndexes = [...allWordIndexes];
           spans.forEach((span) => {
             const index = parseInt(span.dataset.index || "-1", 10);
+            const charIndex = parseInt(span.dataset.charIndex || "-1", 10);
+            
             if (index >= 0 && index < updatedIndexes.length) {
               updatedIndexes[index].element = span;
+              
+              // Also update the character index from the DOM if available
+              if (charIndex >= 0) {
+                updatedIndexes[index].charIndex = charIndex;
+              }
             }
           });
           
           setAllWordIndexes(updatedIndexes);
-          console.log(`Indexed ${spans.length} word elements`);
+          console.log(`Indexed ${spans.length} word elements with character positions`);
         }
       }, 100);
     }
   }, [processedContent]);
 
-  // Improved highlight function with better word matching and handling of repeated words
+  // IMPROVED: Highlight function with better word matching using character positions
   useEffect(() => {
     if (!speaking || !currentWordPosition || !contentRef.current) {
       // Clear all highlights when not speaking
@@ -314,8 +342,8 @@ export function ImmersiveReader({
         word.classList.remove('highlight-word');
       });
       
-      // Normalize the spoken word to match our data-normalized-word attributes
-      const { word: spokenWord } = currentWordPosition;
+      // Get the spoken word and its char position
+      const { word: spokenWord, charIndex: spokenCharIndex } = currentWordPosition;
       const normalizedSpokenWord = normalizeWord(spokenWord);
       
       if (!normalizedSpokenWord) {
@@ -323,47 +351,80 @@ export function ImmersiveReader({
         return;
       }
       
-      console.log(`Finding match for normalized spoken word: "${normalizedSpokenWord}"`);
+      console.log(`Finding match for: "${normalizedSpokenWord}" at char index ${spokenCharIndex}`);
       
-      // Find all matching normalized words
-      const matchingWords = allWordIndexes.filter(item => 
-        item.normalizedWord === normalizedSpokenWord && item.element
+      // IMPROVED ALGORITHM:
+      // 1. First try to find a word with a matching char index or close to it
+      // 2. If that fails, look for the next occurrence of the normalized word after last highlight
+      
+      // Step 1: Find by character index first (most accurate)
+      const CHAR_INDEX_TOLERANCE = 20; // Allow some flexibility in char index matching
+      let matchingWords = allWordIndexes.filter(item => 
+        Math.abs(item.charIndex - spokenCharIndex) < CHAR_INDEX_TOLERANCE && 
+        item.element
       );
       
-      if (matchingWords.length > 0) {
-        let nextWordToHighlight = null;
-        const lastHighlightedIndex = lastHighlightedIndexRef.current;
+      // If we found multiple words near this char index, prefer ones with matching normalized text
+      if (matchingWords.length > 1) {
+        const exactMatches = matchingWords.filter(item => 
+          item.normalizedWord === normalizedSpokenWord
+        );
         
-        // Strategy: find the next occurrence after our last highlight position
-        for (const match of matchingWords) {
-          if (match.index > lastHighlightedIndex) {
-            nextWordToHighlight = match;
-            break;
+        if (exactMatches.length > 0) {
+          matchingWords = exactMatches;
+        }
+        
+        // Sort by character index distance to find closest match
+        matchingWords.sort((a, b) => 
+          Math.abs(a.charIndex - spokenCharIndex) - Math.abs(b.charIndex - spokenCharIndex)
+        );
+      }
+      
+      // Step 2: If no character match, try to find by normalized word after last position
+      if (matchingWords.length === 0) {
+        console.log("No char index matches, falling back to word content matching");
+        
+        // Find all normalized word matches
+        matchingWords = allWordIndexes.filter(item => 
+          item.normalizedWord === normalizedSpokenWord && item.element
+        );
+        
+        if (matchingWords.length > 0) {
+          // Find next occurrence after last highlighted index
+          const lastHighlightedIndex = lastHighlightedIndexRef.current;
+          let nextWordToHighlight = null;
+          
+          for (const match of matchingWords) {
+            if (match.index > lastHighlightedIndex) {
+              nextWordToHighlight = match;
+              break;
+            }
           }
+          
+          // If no next occurrence, wrap around to the first match
+          if (!nextWordToHighlight) {
+            nextWordToHighlight = matchingWords[0];
+          }
+          
+          matchingWords = nextWordToHighlight ? [nextWordToHighlight] : [];
         }
+      }
+      
+      // Apply highlighting to the best match
+      if (matchingWords.length > 0 && matchingWords[0].element) {
+        const bestMatch = matchingWords[0];
+        const elementToHighlight = bestMatch.element;
         
-        // If no next occurrence is found (we're at the end), wrap around to the first match
-        if (!nextWordToHighlight && matchingWords.length > 0) {
-          nextWordToHighlight = matchingWords[0];
-        }
+        // Update highlight
+        elementToHighlight.classList.add('highlight-word');
+        lastHighlightedIndexRef.current = bestMatch.index;
         
-        // Apply highlighting and scroll to the element
-        if (nextWordToHighlight && nextWordToHighlight.element) {
-          const elementToHighlight = nextWordToHighlight.element;
-          
-          // Update highlight
-          elementToHighlight.classList.add('highlight-word');
-          lastHighlightedIndexRef.current = nextWordToHighlight.index;
-          
-          // Use debounced scroll for smoother experience
-          debouncedScrollIntoView(elementToHighlight);
-          
-          console.log(`Highlighted word: "${nextWordToHighlight.word}" at index ${nextWordToHighlight.index}`);
-        } else {
-          console.warn(`No matching element found or element is null for word "${normalizedSpokenWord}"`);
-        }
+        // Use debounced scroll for smoother experience
+        debouncedScrollIntoView(elementToHighlight);
+        
+        console.log(`Highlighted: "${bestMatch.word}" at index ${bestMatch.index}, char pos ${bestMatch.charIndex}`);
       } else {
-        console.warn(`No matching words found for "${normalizedSpokenWord}" in our index of ${allWordIndexes.length} words`);
+        console.warn(`No suitable word match found for "${normalizedSpokenWord}" at char index ${spokenCharIndex}`);
       }
     } catch (error) {
       console.error("Error highlighting word:", error);

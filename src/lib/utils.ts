@@ -24,14 +24,17 @@ export function cleanTextForSpeech(text: string): string {
 }
 
 /**
- * Normalizes a word for comparison by removing punctuation, 
- * converting to lowercase, and trimming
+ * Enhanced normalization of words for comparison
+ * Handles punctuation, casing, and special characters more robustly
  */
 export function normalizeWord(word: string): string {
+  if (!word) return '';
+  
   return word
     .toLowerCase()
     .replace(/[^\w\s']|_/g, '')  // Remove punctuation except apostrophes
     .replace(/\s+/g, ' ')        // Replace multiple spaces with a single space
+    .replace(/^[']+|[']+$/g, '') // Remove leading/trailing apostrophes
     .trim();                     // Remove leading/trailing whitespace
 }
 
@@ -58,3 +61,4 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = window.setTimeout(later, wait);
   };
 }
+
