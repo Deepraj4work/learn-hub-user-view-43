@@ -39,7 +39,7 @@ export function ImmersiveReader({
   const [volume, setVolume] = useState(1);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [wordElements, setWordElements] = useState<HTMLElement[]>([]);
+  const [words, setWords] = useState<string[]>([]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const fullTextRef = useRef<string>("");
@@ -79,39 +79,34 @@ export function ImmersiveReader({
     };
   }, [selectedVoiceURI]);
 
-  // Extract plain text from HTML content and process for word highlighting
+  // Extract plain text from HTML content
   useEffect(() => {
     if (isOpen && content) {
       try {
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = DOMPurify.sanitize(content);
         
-        // Get the text content of the div (includes all text from all elements)
+        // Get plain text from the HTML
         const extractedText = tempDiv.textContent || tempDiv.innerText || "";
         
-        // Thoroughly clean up the text by removing problematic characters and normalizing whitespace
+        // Clean the text for better TTS processing
         const cleanedText = extractedText
-          .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
-          .replace(/\n+/g, ' ')  // Replace newlines with spaces
-          .replace(/\t+/g, ' ')  // Replace tabs with spaces
-          .replace(/\r+/g, ' ')  // Replace carriage returns with spaces
-          .replace(/\f+/g, ' ')  // Replace form feeds with spaces
-          .replace(/\v+/g, ' ')  // Replace vertical tabs with spaces
-          .replace(/\u00A0/g, ' ')  // Replace non-breaking spaces with regular spaces
-          .replace(/\u2003/g, ' ')  // Replace em spaces with regular spaces
-          .trim();               // Remove leading/trailing whitespace
+          .replace(/\s+/g, ' ')
+          .replace(/[\n\r\t\f\v]+/g, ' ')
+          .trim();
         
         // Combine title and content with proper spacing
         const fullText = `${title}. ${cleanedText}`;
         setPlainText(fullText);
         fullTextRef.current = fullText;
         
+        // Split text into words for highlighting
+        setWords(fullText.split(/\s+/));
+        
         // Process content for word-by-word highlighting
         processContentForHighlighting(content);
         
-        // Debug log
-        console.log("Extracted text length:", cleanedText.length);
-        console.log("First 100 chars:", cleanedText.substring(0, 100));
+        console.log("Text prepared for speech, length:", fullText.length);
       } catch (error) {
         console.error("Error extracting text:", error);
         toast.error("Error processing text content");
@@ -119,82 +114,63 @@ export function ImmersiveReader({
     }
   }, [isOpen, content, title]);
 
-  // Process HTML content to wrap words in spans with unique IDs for highlighting
+  // Process HTML content for highlighting
   const processContentForHighlighting = (htmlContent: string) => {
     try {
-      // Create a DOM parser to manipulate HTML
+      // Create processed content with spans around words for highlighting
       const parser = new DOMParser();
       const doc = parser.parseFromString(DOMPurify.sanitize(htmlContent), 'text/html');
       
-      // We'll use this to track the global word index across all text nodes
-      let globalWordIndex = 0;
-      
-      // Process all text nodes to wrap words in spans with unique IDs
-      const processTextNodes = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-          // Split text by spaces and create spans for each word
-          const fragment = document.createDocumentFragment();
-          const words = node.textContent.split(/(\s+)/);
-          
-          words.forEach((word, index) => {
-            if (word.trim()) {
-              // Create span for word with unique ID
-              const span = document.createElement('span');
-              span.textContent = word;
-              span.className = 'reader-word';
-              span.id = `reader-word-${globalWordIndex}`;
-              globalWordIndex++;
-              fragment.appendChild(span);
-            } else if (word) {
-              // Preserve whitespace
-              fragment.appendChild(document.createTextNode(word));
+      // Process all text nodes
+      const processNode = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+          const text = node.textContent;
+          if (text.trim()) {
+            // Create a fragment to replace this text node
+            const fragment = document.createDocumentFragment();
+            
+            // Split by word boundaries and create spans
+            const parts = text.split(/(\s+)/);
+            parts.forEach((part) => {
+              if (part.trim()) {
+                // It's a word - wrap in span
+                const span = document.createElement('span');
+                span.className = 'reader-word';
+                span.textContent = part;
+                fragment.appendChild(span);
+              } else {
+                // It's whitespace - keep as is
+                fragment.appendChild(document.createTextNode(part));
+              }
+            });
+            
+            // Replace the text node with our fragment
+            if (node.parentNode) {
+              node.parentNode.replaceChild(fragment, node);
             }
-          });
-          
-          // Replace text node with fragment containing spans
-          node.parentNode?.replaceChild(fragment, node);
+          }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-          // Skip pre and code elements (preserve formatting)
+          // Skip pre and code elements to preserve formatting
           if (
             (node as Element).tagName !== 'PRE' && 
             (node as Element).tagName !== 'CODE'
           ) {
-            Array.from(node.childNodes).forEach(processTextNodes);
+            // Process all child nodes
+            Array.from(node.childNodes).forEach(processNode);
           }
         }
       };
       
-      // Process the document body
-      Array.from(doc.body.childNodes).forEach(processTextNodes);
+      // Process all nodes in the body
+      Array.from(doc.body.childNodes).forEach(processNode);
       
-      // Get the processed HTML
-      const processedHTML = doc.body.innerHTML;
-      setProcessedContent(processedHTML);
-      
-      // Track the total number of word elements created for easier reference
-      console.log(`Created ${globalWordIndex} word spans for highlighting`);
+      // Set the processed HTML content
+      setProcessedContent(doc.body.innerHTML);
     } catch (error) {
       console.error("Error processing content for highlighting:", error);
       setProcessedContent(htmlContent); // Fallback to original content
-      toast.error("Error processing text for immersive reading");
     }
   };
-
-  // Collect all word elements after content is processed
-  useEffect(() => {
-    if (contentRef.current && processedContent) {
-      // Allow time for the DOM to update with the processed content
-      setTimeout(() => {
-        try {
-          const elements = Array.from(contentRef.current?.querySelectorAll('.reader-word') || []);
-          setWordElements(elements as HTMLElement[]);
-          console.log(`Collected ${elements.length} word elements for highlighting`);
-        } catch (error) {
-          console.error("Error collecting word elements:", error);
-        }
-      }, 100);
-    }
-  }, [processedContent]);
 
   // Configure speech synthesis
   const selectedVoice = availableVoices.find(voice => voice.voiceURI === selectedVoiceURI);
@@ -209,6 +185,7 @@ export function ImmersiveReader({
     supported,
     currentWordPosition
   } = useSpeechSynthesis({
+    text: fullTextRef.current,
     rate: 1,
     pitch: 1,
     volume,
@@ -229,75 +206,72 @@ export function ImmersiveReader({
     }
   }, [isOpen, stop]);
 
-  // Track and highlight current word being spoken
+  // Highlight the current word being spoken
   useEffect(() => {
-    if (!speaking || !currentWordPosition) return;
+    if (!speaking || !currentWordPosition) {
+      // Clear all highlights when not speaking
+      const allWords = contentRef.current?.querySelectorAll('.reader-word');
+      allWords?.forEach(word => {
+        word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+      });
+      return;
+    }
     
     try {
-      // Get the word being spoken position
-      const { start, end } = currentWordPosition;
+      // Find which word is being spoken based on position
+      const { start } = currentWordPosition;
       
-      // Calculate which element should be highlighted based on position
-      let wordIndex = 0;
-      let currentPosition = 0;
-      const words = fullTextRef.current.split(/\s+/);
+      // Get the word at this position in our full text
+      let charCount = 0;
+      let targetWordIndex = -1;
       
-      // Find the index of the current word based on its position in the full text
       for (let i = 0; i < words.length; i++) {
         const wordLength = words[i].length;
         
-        // Check if current position falls within this word's range
-        if (start >= currentPosition && start < currentPosition + wordLength + 1) {
-          wordIndex = i;
+        // Is this our target word?
+        if (start >= charCount && start < charCount + wordLength + 1) {
+          targetWordIndex = i;
           break;
         }
         
-        // Move position counter forward (add 1 for the space)
-        currentPosition += wordLength + 1;
+        // Move to next word position (add 1 for space)
+        charCount += wordLength + 1;
       }
       
-      // Remove previous highlights from all word elements
-      const allWordElements = contentRef.current?.querySelectorAll('.reader-word');
-      allWordElements?.forEach(el => {
-        el.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
-      });
-      
-      // Find the element with the corresponding ID and highlight it
-      const elementId = `reader-word-${wordIndex}`;
-      const elementToHighlight = document.getElementById(elementId);
-      
-      if (elementToHighlight) {
-        // Highlight the current word
-        elementToHighlight.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
-        
-        // Scroll to the highlighted element
-        elementToHighlight.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
+      // We found the word index, now highlight the corresponding element
+      if (targetWordIndex >= 0) {
+        // Clear previous highlights
+        const allWords = contentRef.current?.querySelectorAll('.reader-word');
+        allWords?.forEach(word => {
+          word.classList.remove('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
         });
         
-        console.log(`Highlighting word at index ${wordIndex}, element ID: ${elementId}`);
+        // Find and highlight the word at this index
+        const wordElements = contentRef.current?.querySelectorAll('.reader-word');
+        if (wordElements && targetWordIndex < wordElements.length) {
+          const targetElement = wordElements[targetWordIndex];
+          targetElement.classList.add('bg-primary/30', 'text-primary', 'font-bold', 'rounded', 'px-0.5');
+          
+          // Scroll to the element if needed
+          targetElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
       }
     } catch (error) {
       console.error("Error highlighting word:", error);
     }
-  }, [currentWordPosition, speaking]);
+  }, [currentWordPosition, speaking, words]);
 
   const togglePlayback = () => {
     try {
       if (speaking) {
         paused ? resume() : pause();
       } else {
-        // Ensure we're passing the full text to the speak function
-        if (fullTextRef.current) {
-          console.log("Starting speech with complete text, length:", fullTextRef.current.length);
-          // Pass the entire text string to the speak function
-          speak(fullTextRef.current);
-          toast.success("Reading started");
-        } else {
-          console.error("No text available to speak");
-          toast.error("No text available to read");
-        }
+        speak(fullTextRef.current);
+        toast.success("Reading started");
       }
     } catch (error) {
       console.error("Error toggling playback:", error);
