@@ -46,10 +46,16 @@ export function ImmersiveReader({
       // Get the text content of the div (includes all text from all elements)
       const extractedText = tempDiv.textContent || tempDiv.innerText || "";
       
-      // Clean up the text by removing extra whitespace and newlines
+      // Thoroughly clean up the text by removing problematic characters and normalizing whitespace
       const cleanedText = extractedText
         .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
         .replace(/\n+/g, ' ')  // Replace newlines with spaces
+        .replace(/\t+/g, ' ')  // Replace tabs with spaces
+        .replace(/\r+/g, ' ')  // Replace carriage returns with spaces
+        .replace(/\f+/g, ' ')  // Replace form feeds with spaces
+        .replace(/\v+/g, ' ')  // Replace vertical tabs with spaces
+        .replace(/\u00A0/g, ' ')  // Replace non-breaking spaces with regular spaces
+        .replace(/\u2003/g, ' ')  // Replace em spaces with regular spaces
         .trim();               // Remove leading/trailing whitespace
       
       // Combine title and content with proper spacing
@@ -133,9 +139,14 @@ export function ImmersiveReader({
     if (speaking) {
       paused ? resume() : pause();
     } else {
-      // Pass the full text to the speak function
-      console.log("Starting speech with text length:", fullTextRef.current.length);
-      speak(fullTextRef.current);
+      // Ensure we're passing the full text to the speak function
+      if (fullTextRef.current) {
+        console.log("Starting speech with complete text, length:", fullTextRef.current.length);
+        // Pass the entire text string to the speak function
+        speak(fullTextRef.current);
+      } else {
+        console.error("No text available to speak");
+      }
     }
   };
 
