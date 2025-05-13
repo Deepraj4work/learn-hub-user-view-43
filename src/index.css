@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -151,11 +152,6 @@
   .immersive-reader-button {
     @apply transition-all duration-300 hover:scale-110;
   }
-  
-  /* Word highlighting animation */
-  .animate-highlight-pulse {
-    animation: highlight-pulse 1.2s ease-in-out infinite;
-  }
 }
 
 @keyframes slideIn {
@@ -212,22 +208,6 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0);
-  }
-}
-
-/* Enhanced highlighting animation */
-@keyframes highlight-pulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 0 15px 5px rgba(139, 92, 246, 0.3);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
   }
 }
 
