@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 
 interface UseSpeechSynthesisProps {
@@ -180,9 +181,10 @@ export function useSpeechSynthesis({
               if (content.includes(word)) {
                 const wordIndex = content.indexOf(word);
                 if (wordIndex >= 0) {
-                  // Get paragraph position
-                  const paragraphTop = paragraph.offsetTop;
-                  const paragraphHeight = paragraph.offsetHeight;
+                  // Get paragraph position - adding type assertion here
+                  const htmlParagraph = paragraph as HTMLElement;
+                  const paragraphTop = htmlParagraph.offsetTop;
+                  const paragraphHeight = htmlParagraph.offsetHeight;
                   const containerHeight = elementRef.current.clientHeight;
                   
                   // Calculate scroll position to keep the word near the middle
