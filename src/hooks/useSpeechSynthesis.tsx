@@ -61,43 +61,34 @@ export function useSpeechSynthesis({
     }
   }, [text]);
   
-  // Handle speech errors gracefully with more detailed information
-  const handleSpeechError = useCallback((error?: any) => {
-    // Cancel any ongoing speech
+  // Handle speech errors gracefully
+  const handleSpeechError = useCallback(() => {
     try {
       window.speechSynthesis.cancel();
+      setSpeaking(false);
+      setPaused(false);
+      setCurrentWordPosition(null);
+      
+      toast.error(
+        "There was a problem with the text-to-speech. Try a different voice or browser.",
+        { duration: 4000 }
+      );
     } catch (e) {
-      console.error("Error canceling speech synthesis:", e);
+      console.error("Error handling speech error:", e);
     }
-    
-    // Reset state
-    setSpeaking(false);
-    setPaused(false);
-    setCurrentWordPosition(null);
-    
-    // Log detailed error information for debugging
-    console.error("Speech synthesis error details:", error);
-    
-    // Provide a more helpful error message to the user
-    toast.error(
-      "There was a problem with the text-to-speech feature. Please try a different voice or refresh the page.",
-      { duration: 5000 }
-    );
   }, []);
   
-  // Prepare text and analyze word boundaries before speech - IMPROVED
+  // Prepare text and analyze word boundaries before speech
   const prepareTextAndBoundaries = useCallback((text: string) => {
     try {
       const cleanedText = cleanTextForSpeech(text);
       
-      // Use a more precise regex to identify words and their boundaries
-      // This regex captures words (including punctuation) and all whitespace
+      // More precise regex to identify words including punctuation
       const wordRegex = /(\S+|\s+)/g;
       let match;
       const boundaries: {word: string, normalizedWord: string, start: number, end: number, charIndex: number}[] = [];
-      let charIndex = 0;
       
-      // This creates a more accurate mapping of character indices to words
+      // Create accurate mapping of character indices to words
       while ((match = wordRegex.exec(cleanedText)) !== null) {
         const word = match[0];
         const start = match.index;
@@ -110,21 +101,17 @@ export function useSpeechSynthesis({
             normalizedWord: normalizeWord(word),
             start,
             end,
-            charIndex: start // Store the exact character index where this word starts
+            charIndex: start
           });
         }
-        
-        charIndex = end;
       }
       
-      // Store the analyzed text and boundaries
+      // Store analyzed text and boundaries
       wordBoundariesRef.current = {
         text: cleanedText,
         boundaries
       };
       
-      console.log(`Word boundaries calculated: ${boundaries.length} words with exact character mappings`);
-      console.log("First 5 word boundaries:", boundaries.slice(0, 5));
       return cleanedText;
     } catch (error) {
       console.error("Error preparing text:", error);
@@ -132,19 +119,16 @@ export function useSpeechSynthesis({
     }
   }, []);
   
-  // Prepare utterance with improved error handling and boundary detection
+  // Prepare utterance with boundary detection
   const prepareUtterance = useCallback((textToSpeak: string, chunkIndex: number) => {
     if (!supported) return null;
     
     try {
-      console.log(`Creating utterance for chunk ${chunkIndex} with length: ${textToSpeak.length}`);
-      
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.rate = rate;
       utterance.pitch = pitch;
       utterance.volume = volume;
       
-      // Set voice if provided
       if (voice) {
         utterance.voice = voice;
       }
@@ -152,12 +136,9 @@ export function useSpeechSynthesis({
       utterance.onstart = () => {
         setSpeaking(true);
         setPaused(false);
-        console.log(`Speech started for chunk: ${chunkIndex}`);
       };
       
       utterance.onend = () => {
-        console.log(`Speech ended for chunk: ${chunkIndex}, chunks length: ${chunksRef.current.length}`);
-        
         try {
           // If there are more chunks to speak
           if (currentChunkIndexRef.current < chunksRef.current.length - 1) {
@@ -177,97 +158,68 @@ export function useSpeechSynthesis({
             setSpeaking(false);
             setPaused(false);
             setCurrentWordPosition(null);
-            console.log("All speech ended");
           }
         } catch (error) {
           console.error("Error in onend handler:", error);
-          handleSpeechError(error);
+          handleSpeechError();
         }
       };
       
       utterance.onpause = () => {
         setPaused(true);
-        console.log("Speech paused");
       };
       
       utterance.onresume = () => {
         setPaused(false);
-        console.log("Speech resumed");
       };
       
       utterance.onerror = (event) => {
-        console.error(`Speech error in chunk ${chunkIndex}:`, event);
-        handleSpeechError(event);
+        console.error("Speech error:", event);
+        handleSpeechError();
       };
       
-      // IMPROVED Word boundary event handling
+      // Improved word boundary handling
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           try {
-            // Get the character index from the event
+            // Get character index from the event
             const charIndex = event.charIndex;
             
-            // Find the word that contains this character index
-            const boundaries = wordBoundariesRef.current.boundaries;
+            // Get chunk offset for accurate position tracking
             const chunkOffset = getChunkCharOffset(chunkIndex);
             
-            // Adjust charIndex for the current chunk
+            // Adjust for current chunk
             const adjustedCharIndex = charIndex + chunkOffset;
             
-            console.log(`Word boundary at adjusted character index: ${adjustedCharIndex} (raw: ${charIndex}, chunk offset: ${chunkOffset})`);
-            
             // Find word boundaries that contain this character index
-            // Using a more accurate algorithm that checks if the character falls within word boundaries
-            let matchedBoundary = null;
+            const boundaries = wordBoundariesRef.current.boundaries;
+            
+            // Find closest matching word
+            let bestMatch = null;
+            let minDistance = Number.MAX_VALUE;
             
             for (const boundary of boundaries) {
-              // Check if this character index falls within or near this boundary
-              if (adjustedCharIndex >= boundary.start && 
-                  adjustedCharIndex <= boundary.end + 1) { // +1 for tolerance at word end
-                matchedBoundary = boundary;
-                break;
+              const distance = Math.min(
+                Math.abs(adjustedCharIndex - boundary.start),
+                Math.abs(adjustedCharIndex - boundary.end)
+              );
+              
+              if (distance < minDistance) {
+                minDistance = distance;
+                bestMatch = boundary;
               }
             }
             
-            // If no exact match, find the closest boundary
-            if (!matchedBoundary) {
-              let closestBoundary = null;
-              let minDistance = Infinity;
-              
-              for (const boundary of boundaries) {
-                // Find the closest word boundary to this charIndex
-                const distanceToStart = Math.abs(adjustedCharIndex - boundary.start);
-                const distanceToEnd = Math.abs(adjustedCharIndex - boundary.end);
-                const minDistanceToBoundary = Math.min(distanceToStart, distanceToEnd);
-                
-                if (minDistanceToBoundary < minDistance) {
-                  minDistance = minDistanceToBoundary;
-                  closestBoundary = boundary;
-                }
-              }
-              
-              matchedBoundary = closestBoundary;
-              
-              // Log this scenario for debugging
-              if (matchedBoundary) {
-                console.log(`No exact match found for charIndex ${adjustedCharIndex}. Using closest word: "${matchedBoundary.word}" at distance ${minDistance}`);
-              }
-            }
-            
-            if (matchedBoundary) {
+            if (bestMatch && minDistance < 50) { // Use tolerance to avoid false matches
               setCurrentWordPosition({
-                start: matchedBoundary.start,
-                end: matchedBoundary.end,
-                word: matchedBoundary.word,
+                start: bestMatch.start,
+                end: bestMatch.end,
+                word: bestMatch.word,
                 charIndex: adjustedCharIndex
               });
-              
-              console.log(`Matched word boundary: "${matchedBoundary.word}" (normalized: "${matchedBoundary.normalizedWord}") at ${matchedBoundary.start}-${matchedBoundary.end}`);
-            } else {
-              console.warn(`No matching word found for character index ${adjustedCharIndex}`);
             }
           } catch (error) {
-            console.error("Error in boundary event handler:", error);
+            console.error("Error in boundary handler:", error);
           }
         }
       };
@@ -275,48 +227,48 @@ export function useSpeechSynthesis({
       return utterance;
     } catch (error) {
       console.error("Error preparing utterance:", error);
-      handleSpeechError(error);
+      handleSpeechError();
       return null;
     }
   }, [rate, pitch, volume, voice, supported, handleSpeechError]);
   
-  // Helper function to calculate character offset for multi-chunk text
-  const getChunkCharOffset = (chunkIndex: number): number => {
+  // Calculate character offset for multi-chunk text
+  const getChunkCharOffset = useCallback((chunkIndex: number): number => {
     let offset = 0;
     for (let i = 0; i < chunkIndex; i++) {
       offset += chunksRef.current[i].length;
     }
     return offset;
-  };
+  }, []);
   
-  // Split text into chunks intelligently at sentence boundaries
+  // Split text into chunks at natural sentence boundaries
   const splitTextIntoChunks = useCallback((text: string): string[] => {
     try {
-      const MAX_CHUNK_LENGTH = 100; // Smaller chunks for better reliability
+      // Smaller chunk size for better reliability
+      const MAX_CHUNK_LENGTH = 150;
       const cleanedText = cleanTextForSpeech(text);
       
-      // Split text by sentences
-      const sentenceSplitters = /([.!?])\s+/g;
+      // Split by sentence boundaries
+      const sentenceSplitRegex = /([.!?])\s+/g;
       let sentences: string[] = [];
       let lastIndex = 0;
       let match;
       
-      while ((match = sentenceSplitters.exec(cleanedText)) !== null) {
+      while ((match = sentenceSplitRegex.exec(cleanedText)) !== null) {
         sentences.push(cleanedText.substring(lastIndex, match.index + 1));
         lastIndex = match.index + match[0].length;
       }
       
-      // Add the last sentence if there's text remaining
+      // Add final sentence
       if (lastIndex < cleanedText.length) {
         sentences.push(cleanedText.substring(lastIndex));
       }
       
-      // Group sentences into chunks
+      // Group into manageable chunks
       const chunks: string[] = [];
       let currentChunk = "";
       
       for (const sentence of sentences) {
-        // If adding this sentence would make the chunk too long
         if (currentChunk.length + sentence.length > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
           chunks.push(currentChunk);
           currentChunk = sentence;
@@ -325,20 +277,19 @@ export function useSpeechSynthesis({
         }
       }
       
-      // Add the last chunk if needed
+      // Add final chunk
       if (currentChunk.length > 0) {
         chunks.push(currentChunk);
       }
       
-      console.log(`Split text into ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
-      console.error("Error splitting text into chunks:", error);
+      console.error("Error splitting text:", error);
       return [text]; // Fallback to single chunk
     }
   }, []);
   
-  // Main speak function with improved error recovery
+  // Main speak function
   const speak = useCallback((customText?: string) => {
     if (!supported) return;
     
@@ -348,49 +299,43 @@ export function useSpeechSynthesis({
       
       const textToSpeak = customText || textContentRef.current;
       if (!textToSpeak) {
-        console.warn("No text to speak");
-        toast.warning("No text available to read");
         return;
       }
-      
-      console.log(`Speaking text (${textToSpeak.length} chars)`);
       
       // Prepare text and analyze word boundaries
       const processedText = prepareTextAndBoundaries(textToSpeak);
       
-      // Split the text into manageable chunks
+      // Split into chunks
       chunksRef.current = splitTextIntoChunks(processedText);
       currentChunkIndexRef.current = 0;
       
-      // Start speaking the first chunk
+      // Start speaking first chunk
       if (chunksRef.current.length > 0) {
         const utterance = prepareUtterance(chunksRef.current[0], 0);
         if (!utterance) {
-          handleSpeechError(new Error("Failed to create utterance"));
+          handleSpeechError();
           return;
         }
         
         utteranceRef.current = utterance;
         
-        // Add a delay before starting speech to ensure browser is ready
+        // Short delay for better browser compatibility
         setTimeout(() => {
           try {
             window.speechSynthesis.speak(utterance);
           } catch (error) {
             console.error("Error starting speech:", error);
-            handleSpeechError(error);
+            handleSpeechError();
           }
-        }, 200); // Increased delay for better reliability
+        }, 150);
       }
       
-      // Workaround for Chrome bug where speech stops after ~15 seconds
-      const intervalId = setInterval(() => {
-        if (!speaking) {
-          clearInterval(intervalId);
+      // Chrome bug workaround: prevent speech from stopping after ~15 seconds
+      const keepAliveInterval = setInterval(() => {
+        if (!speaking || paused) {
+          clearInterval(keepAliveInterval);
           return;
         }
-        
-        if (paused) return;
         
         try {
           window.speechSynthesis.pause();
@@ -400,13 +345,14 @@ export function useSpeechSynthesis({
         }
       }, 10000); // Every 10 seconds
       
-      return () => clearInterval(intervalId);
+      return () => clearInterval(keepAliveInterval);
     } catch (error) {
       console.error("Error starting speech:", error);
-      handleSpeechError(error);
+      handleSpeechError();
     }
   }, [supported, prepareUtterance, splitTextIntoChunks, speaking, paused, handleSpeechError, prepareTextAndBoundaries]);
   
+  // Stop speech
   const stop = useCallback(() => {
     if (!supported) return;
     
@@ -421,6 +367,7 @@ export function useSpeechSynthesis({
     }
   }, [supported]);
   
+  // Pause speech
   const pause = useCallback(() => {
     if (!supported) return;
     
@@ -431,6 +378,7 @@ export function useSpeechSynthesis({
     }
   }, [supported]);
   
+  // Resume speech
   const resume = useCallback(() => {
     if (!supported) return;
     
@@ -467,4 +415,3 @@ export function useSpeechSynthesis({
 }
 
 export default useSpeechSynthesis;
-
