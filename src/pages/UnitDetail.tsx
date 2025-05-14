@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { UnitHeader } from "@/components/courses/UnitHeader";
 import { UnitContent } from "@/components/courses/UnitContent";
@@ -40,7 +39,6 @@ const unitContentForReader = `
 
 export function UnitDetail() {
   const { moduleId, unitId } = useParams();
-  const location = useLocation();
   const [activeTab, setActiveTab] = useState("lessons");
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isImmersiveReaderOpen, setIsImmersiveReaderOpen] = useState(false);
@@ -191,13 +189,12 @@ export function UnitDetail() {
         </div>
       </main>
       
-      {/* Updated Immersive Reader Component */}
+      {/* Immersive Reader Component */}
       <ImmersiveReader
         title="Context API & useContext"
         content={unitContentForReader}
         isOpen={isImmersiveReaderOpen}
         onClose={() => setIsImmersiveReaderOpen(false)}
-        currentPath={location.pathname}
       />
     </div>
   );
