@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { UnitHeader } from "@/components/courses/UnitHeader";
 import { UnitContent } from "@/components/courses/UnitContent";
@@ -39,6 +39,7 @@ const unitContentForReader = `
 
 export function UnitDetail() {
   const { moduleId, unitId } = useParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("lessons");
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isImmersiveReaderOpen, setIsImmersiveReaderOpen] = useState(false);
@@ -100,6 +101,16 @@ export function UnitDetail() {
     toast.success("Immersive Reader activated");
   };
 
+  const handleOpenSpeechify = () => {
+    navigate("/speechify-reader", { 
+      state: { 
+        content: unitContentForReader,
+        title: "Context API & useContext"
+      } 
+    });
+    toast.success("Speechify Reader activated");
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       <DashboardHeader />
@@ -118,6 +129,16 @@ export function UnitDetail() {
           />
           
           <div className="flex items-center justify-end gap-3 mb-6 opacity-0 action-button">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenSpeechify}
+              className="flex items-center gap-1 transition-all duration-300 hover:bg-primary/10"
+            >
+              <BookOpen size={16} />
+              <span>Speechify</span>
+            </Button>
+            
             <Button
               variant="outline"
               size="sm"

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +119,7 @@ export function LessonView() {
   const { moduleId, unitId, lessonId } = useParams();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isImmersiveReaderOpen, setIsImmersiveReaderOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Animation effect when component mounts
   useEffect(() => {
@@ -128,6 +129,18 @@ export function LessonView() {
       lessonContent?.classList.remove("opacity-0");
     }, 100);
   }, []);
+
+  const handleOpenSpeechify = () => {
+    navigate("/speechify-reader", { 
+      state: { 
+        content: lessonContent,
+        title: lessonData.title
+      } 
+    });
+    toast.success("Speechify Reader activated", {
+      duration: 3000
+    });
+  };
 
   const handleOpenImmersiveReader = () => {
     setIsImmersiveReaderOpen(true);
@@ -154,6 +167,16 @@ export function LessonView() {
             </div>
             
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleOpenSpeechify}
+                className="flex items-center gap-1"
+              >
+                <BookOpen size={16} className="mr-1" />
+                Speechify
+              </Button>
+              
               <Button 
                 variant="outline" 
                 size="sm" 

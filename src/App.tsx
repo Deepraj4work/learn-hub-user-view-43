@@ -24,6 +24,7 @@ import NewsPage from "@/pages/group/NewsPage";
 import CalendarPage from "@/pages/group/CalendarPage";
 import MembersPage from "@/pages/group/MembersPage";
 import AdminPage from "@/pages/group/AdminPage";
+import { SpeechifyReaderView } from "@/pages/SpeechifyReaderView";
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Route>
+        <Route path="/speechify-reader" element={<SpeechifyReaderView />} />
       </Routes>
       <Toaster />
     </ThemeProvider>
