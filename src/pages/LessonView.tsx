@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +118,7 @@ ReactDOM.render(
 
 export function LessonView() {
   const { moduleId, unitId, lessonId } = useParams();
+  const location = useLocation();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isImmersiveReaderOpen, setIsImmersiveReaderOpen] = useState(false);
   
@@ -244,12 +246,13 @@ export function LessonView() {
         </div>
       </main>
 
-      {/* Immersive Reader Component */}
+      {/* Updated Immersive Reader Component */}
       <ImmersiveReader
         title={lessonData.title}
         content={lessonContent}
         isOpen={isImmersiveReaderOpen}
         onClose={() => setIsImmersiveReaderOpen(false)}
+        currentPath={location.pathname}
       />
     </div>
   );
